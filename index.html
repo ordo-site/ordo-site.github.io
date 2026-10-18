@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-62.quiet';})();</script>
+window.__ORDO_BUILD='ordo-63.noideas';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1306,86 +1306,6 @@ const Docs = {
   }
 };
 
-/* ---------------- ideas (suggestions, staff-only inbox) ---------------- */
-const Ideas = {
-  compose(){
-    if(!S.group?.id){ toast('Сначала вступите в группу'); return; }
-    sheet(`<h3>Предложить идею</h3>
-      <p class="body2" style="margin-top:6px">Идею увидит только администратор. Одна идея в сутки, до 500 символов.</p>
-      <div class="field" style="margin-top:14px"><label>Ваша идея</label>
-      <textarea class="inp" id="ideaBody" rows="4" maxlength="500" placeholder="Например: напоминание о дежурстве накануне"></textarea></div>
-      <div class="tiny" style="margin-top:6px;text-align:right"><span id="ideaCount">0</span> / 500</div>
-      <div class="err" id="ideaErr"></div>
-      <div class="actions"><button class="btn btn-q" id="ideaNo">Отмена</button><button class="btn btn-p" id="ideaYes">Отправить</button></div>`);
-    const ta = $('#ideaBody');
-    ta.addEventListener('input', () => { const c = $('#ideaCount'); if(c) c.textContent = ta.value.length; });
-    $('#ideaNo').onclick = closeSheet;
-    $('#ideaYes').onclick = () => Ideas.submit(ta.value.trim());
-  },
-  async submit(body){
-    const err = m => { const e = $('#ideaErr'); if(e){ e.textContent = m; e.classList.add('show'); } };
-    if(!body){ err('Напишите хоть что-нибудь.'); return; }
-    if(body.length > 500){ err('Слишком длинно — максимум 500 символов.'); return; }
-    const btn = $('#ideaYes'); if(btn) btn.disabled = true;
-    try{
-      const ban = await db.from('suggestion_bans').select('user_id').eq('user_id', S.user.id).maybeSingle();
-      if(ban.error) throw ban.error;
-      if(ban.data){ closeSheet(); toast('Отправка идей вам недоступна.'); return; }
-      const r = await db.from('suggestions').insert({
-        group_id:S.group.id, author_id:S.user.id,
-        author_name:S.profile?.display_name || 'Без имени', body
-      });
-      if(r.error) throw r.error;
-      closeSheet(); toast('Идея отправлена. Спасибо!');
-    }catch(e){
-      if(btn) btn.disabled = false;
-      const msg = e?.message || '';
-      if(e?.code === '23505' || /duplicate key|unique/i.test(msg)) err('Сегодня вы уже отправляли идею. Возвращайтесь завтра.');
-      else if(e?.code === '42P01' || /suggestion/i.test(msg) && /not exist|not find/i.test(msg)) err('Идеи ещё не включены — идёт настройка, попробуйте позже.');
-      else err('Не отправилось: ' + (msg || 'ошибка'));
-    }
-  }
-};
-async function renderIdeas(el){
-  if(!el) return;
-  try{
-    const r = await db.from('suggestions').select('id,author_id,author_name,body,created_at,read')
-      .eq('group_id', S.group.id).order('created_at', { ascending:false }).limit(50);
-    if(r.error) throw r.error;
-    const rows = r.data || [];
-    const unread = rows.filter(x => !x.read).length;
-    const badge = $('#ideaBadge');
-    if(badge){ badge.style.display = unread ? '' : 'none'; badge.textContent = unread + ' нов.'; }
-    if(unread > 0 && !('ideas' in adSecRaw())) adSecOpen('ideas'); /* auto-expand unless user explicitly collapsed */
-    el.innerHTML = rows.length ? rows.map(x => `
-      <div class="hrow"><div class="grow"><b>${esc(x.author_name)}</b>
-        <div class="sub" style="font-size:14px;color:var(--sec);margin-top:2px">${esc(x.body)}</div></div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:none">
-          <span class="tiny">${esc(fmt(x.created_at))}</span>
-          <div style="display:flex;gap:8px">
-            ${x.read ? '' : `<button class="iabtn" data-iread="${x.id}">Прочитано</button>`}
-            <button class="iabtn" data-iban="${x.author_id}" data-iname="${esc(x.author_name)}">Бан</button>
-            <button class="iabtn danger" data-idel="${x.id}" aria-label="Удалить идею">×</button>
-          </div>
-        </div></div>`).join('')
-      : '<div class="row"><div class="grow body2">Идей пока нет.</div></div>';
-    el.querySelectorAll('[data-iread]').forEach(b => b.onclick = () => run(async () => {
-      const u = await db.from('suggestions').update({ read:true }).eq('id', b.dataset.iread);
-      if(u.error) throw u.error; renderIdeas(el); toast('Отмечено');
-    }));
-    el.querySelectorAll('[data-idel]').forEach(b => b.onclick = () =>
-      confirmBox('Удалить идею?', 'Она исчезнет без следа.', 'Удалить', () => run(async () => {
-        const d = await db.from('suggestions').delete().eq('id', b.dataset.idel);
-        if(d.error) throw d.error; renderIdeas(el); toast('Удалена');
-      }), true));
-    el.querySelectorAll('[data-iban]').forEach(b => b.onclick = () => {
-      if(b.dataset.iban === S.user?.id){ toast('Себя забанить нельзя'); return; }
-      confirmBox('Забанить?', `${b.dataset.iname} больше не сможет отправлять идеи.`, 'Забанить', () => run(async () => {
-        const ins = await db.from('suggestion_bans').upsert({ user_id:b.dataset.iban }, { onConflict:'user_id' });
-        if(ins.error) throw ins.error; toast('Забанен');
-      }), true)});
-  }catch(e){ el.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
-}
 
 /* ---------------- accounts & admin ops (backend contract) ---------------- */
 const Authz = {
@@ -2074,25 +1994,16 @@ function vProfile(){
   }).join('');
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
-  if(ad && isStaff() && S.group?.id){
-    db.from('suggestions').select('id', { count:'exact', head:true }).eq('group_id', S.group.id).eq('read', false)
-      .then(r => {
-        const n = r.count || 0;
-        if(n > 0){ const sub = ad.querySelector('.sub'); if(sub) sub.innerHTML += ` <span style="white-space:nowrap">· <b style="color:var(--accent)">идей: ${n}</b></span>`; }
-      }).catch(() => {});
-  }
   $('#pfAbout').onclick = () => {
     sheet(`<h3>О проекте</h3>
     <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.</p>
     <div class="rows" style="margin-top:16px">
       <button class="row" id="abDocs"><div class="grow">Документы</div><span class="chev">›</span></button>
-      <button class="row" id="abIdea"><div class="grow">Предложить идею<div class="sub">Увидит только администратор</div></div><span class="chev">›</span></button>
       <div class="row"><div class="grow">Связь<div class="sub"><a href="mailto:damir.noir@gmail.com">damir.noir@gmail.com</a></div></div></div>
     </div>
     <div class="actions"><button class="btn btn-p" id="abOk">Закрыть</button></div>
     <p class="body2" style="margin-top:14px;text-align:center;color:var(--ter)">Говорят, логотип Ordo любит внимание…</p>`);
     document.getElementById('abDocs').onclick = () => Docs.open();
-    document.getElementById('abIdea').onclick = () => Ideas.compose();
     document.getElementById('abOk').onclick = closeSheet;
   };
   $('#pfOut').onclick = () => confirmBox('Выйти?', 'Придётся войти заново.', 'Выйти', () => Auth.logout(), true);
@@ -2169,8 +2080,6 @@ async function vAdmin(){
         <button class="linkbtn" data-rst="${esc(p.id)}">Пароль</button>` : '<span class="tag">вы</span>'}</div>`;
       }).join('')}
     </div>`) +
-    sec('ideas', `Идеи <span class="tag blue" id="ideaBadge" style="display:none"></span>`, `
-    <div id="adIdeas"></div>`) +
     sec('queue', 'Состояние очереди', `
     <div class="rows">
       <button class="row" id="adPause"><div class="grow"><b>${paused ? 'Возобновить назначения' : 'Приостановить назначения'}</b></div><span class="chev">›</span></button>
@@ -2207,7 +2116,6 @@ async function vAdmin(){
     $('#adPause').onclick = () => Authz.setPaused(!paused);
     $('#adExp').onclick = () => Authz.exportExcel();
     $('#adCode').onclick = () => Authz.ensureJoinCode();
-    renderIdeas($('#adIdeas'));
     renderAuditFeed($('#adAudit'));
     if(!freshChrome){ body.classList.remove('vin'); void body.offsetWidth; body.classList.add('vin'); }
   }catch(e){ body.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
