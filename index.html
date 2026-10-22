@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-67.teamnote';})();</script>
+window.__ORDO_BUILD='ordo-69.gmenu';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -127,9 +127,14 @@ a{color:var(--accent);text-decoration:none}
 .gsel small{font-size:12.5px;font-weight:600}
 .gchev{font-size:9px;color:var(--ter)}
 .gsel.gstatic{cursor:default}
-.gmenu{position:fixed;z-index:99990;min-width:210px;max-width:280px;background:var(--bg2);border:1px solid var(--hair);border-radius:16px;box-shadow:var(--shadow);padding:6px;animation:up .25s var(--spring)}
+.gmenu{position:fixed;z-index:99990;min-width:210px;max-width:280px;overflow:hidden;background:var(--bg2);border:1px solid var(--hair);border-radius:16px;box-shadow:var(--shadow);animation:up .25s var(--spring)}
+.gmenu .gscroll{max-height:min(50vh,440px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:6px}
 .gmenu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:0;color:var(--text);font:inherit;font-size:15px;font-weight:600;padding:11px 12px;border-radius:10px;cursor:pointer}
 .gmenu button:active{background:var(--fill)}
+.gmenu .ghead{position:sticky;top:-6px;z-index:1;background:var(--bg2);padding:12px 12px 5px;font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ter)}
+.gmenu .ghead:first-child{padding-top:6px}
+.gmenu .gfade{position:absolute;left:0;right:0;bottom:0;height:46px;pointer-events:none;background:linear-gradient(to bottom,transparent,var(--bg2) 88%);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);-webkit-mask-image:linear-gradient(to bottom,transparent,#000);mask-image:linear-gradient(to bottom,transparent,#000);transition:opacity .2s ease}
+.gmenu.at-bottom .gfade{opacity:0}
 .gmenu.closing{animation:gclose .18s ease-in forwards}
 @keyframes gclose{to{opacity:0;transform:translateY(-8px) scale(.97)}}
 .brand .mark{width:30px;height:30px}
@@ -1640,9 +1645,20 @@ function toggleGroupMenu(){
   if(!anchor || !(S.groups || []).length) return;
   const m = document.createElement('div');
   m.id = 'gMenu'; m.className = 'gmenu';
-  m.innerHTML = S.groups.map(g =>
-    `<button data-gsm="${esc(g.id)}"><span>${esc(g.name)}</span>${g.id === S.group?.id ? '<span class="tag blue">текущая</span>' : ''}</button>`).join('');
+  const list = [...S.groups].sort(groupSort);
+  const multiCourse = new Set(list.map(g => (/^(\d)/.exec(g.name || '') || [])[1]).filter(Boolean)).size > 1;
+  let lastCourse = null, html = '';
+  for(const g of list){
+    const course = ((/^(\d)/.exec(g.name || '')) || [])[1] || null;
+    if(multiCourse && course && course !== lastCourse){ html += `<div class="ghead">${course} курс</div>`; lastCourse = course; }
+    html += `<button data-gsm="${esc(g.id)}"><span>${esc(g.name)}</span>${g.id === S.group?.id ? '<span class="tag blue">текущая</span>' : ''}</button>`;
+  }
+  m.innerHTML = `<div class="gscroll">${html}</div><div class="gfade"></div>`;
   document.body.appendChild(m);
+  const sc = m.querySelector('.gscroll');
+  const updFade = () => m.classList.toggle('at-bottom', sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 4);
+  sc.addEventListener('scroll', updFade, { passive:true });
+  requestAnimationFrame(updFade);
   const r = anchor.getBoundingClientRect();
   m.style.top = (r.bottom + 8) + 'px';
   m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 228)) + 'px';
@@ -2015,7 +2031,7 @@ function vProfile(){
 
 /* ---------------- admin (discreet curtain) ---------------- */
 const ADSEC_KEY = 'ordo-adsec';
-const ADSEC_DEF = { groups:false, access:true, ideas:false, queue:false, events:false, data:false };
+const ADSEC_DEF = { groups:false, access:true, queue:false, events:false, data:false };
 const adSecRaw = () => { try{ return JSON.parse(localStorage.getItem(ADSEC_KEY) || '{}'); }catch(_){ return {}; } };
 const adSecGet = () => ({ ...ADSEC_DEF, ...adSecRaw() });
 const adSecSet = (k, v) => { const s = adSecRaw(); s[k] = v; try{ localStorage.setItem(ADSEC_KEY, JSON.stringify(s)); }catch(_){} };
@@ -2094,7 +2110,7 @@ async function vAdmin(){
     $('#gRename').onclick = () => Authz.renameGroup();
     body.querySelectorAll('[data-gdel]').forEach(b => b.onclick = e => { e.stopPropagation();
       const gname = b.dataset.gname, gdelId = b.dataset.gdel;
-      const w = sheet(`<h3>Удалить группу?</h3><p class="body2" style="margin-top:8px">«${esc(gname)}»: люди, очередь, журнал и идеи исчезнут без следа. Аккаунты людей сохранятся. Это нельзя отменить.</p><div class="field" style="margin-top:14px"><label>Для подтверждения введите название группы</label><input class="inp" id="dgIn" autocomplete="off" placeholder="${esc(gname)}"></div><div class="actions"><button class="btn btn-q" id="dgNo">Отмена</button><button class="btn btn-danger-q" id="dgYes">Удалить</button></div>`);
+      const w = sheet(`<h3>Удалить группу?</h3><p class="body2" style="margin-top:8px">«${esc(gname)}»: люди, очередь и журнал исчезнут без следа. Аккаунты людей сохранятся. Это нельзя отменить.</p><div class="field" style="margin-top:14px"><label>Для подтверждения введите название группы</label><input class="inp" id="dgIn" autocomplete="off" placeholder="${esc(gname)}"></div><div class="actions"><button class="btn btn-q" id="dgNo">Отмена</button><button class="btn btn-danger-q" id="dgYes">Удалить</button></div>`);
       setTimeout(() => w.querySelector('#dgIn')?.focus(), 80);
       w.querySelector('#dgNo').onclick = closeSheet;
       w.querySelector('#dgYes').onclick = () => { if(w.querySelector('#dgIn').value.trim() !== gname){ toast('Название не совпало'); return; } closeSheet(); Authz.deleteGroup(gdelId); };
