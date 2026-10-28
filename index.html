@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-82.invfix';})();</script>
+window.__ORDO_BUILD='ordo-83.top5';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -491,6 +491,7 @@ function sheet(html, opts){
   const lock = !!(opts && opts.lock); /* lock: нельзя закрыть тапом мимо или свайпом — только кнопкой */
   const w = document.createElement('div');
   w.className = 'scrim'; w.id = 'sheetWrap';
+  if(lock) w.dataset.locked = '1';
   w.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
   const born = Date.now();
   /* iOS ghost click: the tap that opens the sheet can re-fire ~300ms later
@@ -577,6 +578,35 @@ async function run(f){
   catch(e){ fail(e); try{ await Store.loadGroup(); render(); }catch(_){ try{ await Store.checkGroupGone(); }catch(_){} } }
   finally{ S.busy = false; }
 }
+/* Живые отметки: run() молча отбрасывает вызов при S.busy, а ответ saveState()
+   перезатирает состояние серверным — быстрые тапы терялись. Поэтому отметки
+   копятся в _pendingMarks, а цепочка сохранений применяет их перед каждой
+   отправкой, включая повтор после конфликта версий. */
+function queueMarkSave(){
+  const gid = S.group?.id;
+  S._markChain = (S._markChain || Promise.resolve()).then(async () => {
+    if(!S.state.current || S.group?.id !== gid) return;
+    if(S._pendingMarks){
+      S.state.current.marks = { ...(S.state.current.marks || {}), ...S._pendingMarks };
+    }
+    const applied = S._pendingMarks; S._pendingMarks = {};
+    let ok = false;
+    try{ await Store.saveState(); ok = true; }
+    catch(e){
+      if(S.fromCache || !S.state.current || S.group?.id !== gid){ fail(e); try{ await Store.loadGroup(); }catch(_){} }
+      else{
+        /* Конфликт версий: saveState уже подтянул свежее состояние — отметки
+           из этой попытки возвращаем и пробуем ещё раз. */
+        S.state.current.marks = { ...(S.state.current.marks || {}), ...(applied || {}), ...(S._pendingMarks || {}) };
+        S._pendingMarks = {};
+        try{ await Store.saveState(); ok = true; }
+        catch(e2){ fail(e2); try{ await Store.loadGroup(); }catch(_){} }
+      }
+    }
+    void ok;
+    render();
+  }).catch(()=>{});
+}
 
 /* ---------------- supabase ---------------- */
 const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
@@ -600,6 +630,7 @@ const dutyWindowOpen = () => {
 function debtorIds(){
   const owed = new Map();
   (S.state.log || []).forEach(en => (en.people || []).forEach(it => {
+    if(it.sub) return; /* замена: отметка принадлежит заменявшему, а не заменяемому */
     if(it.status === STATUS.PRESENT) owed.delete(it.id);
     else if(!owed.has(it.id)) owed.set(it.id, true);
   }));
@@ -764,7 +795,9 @@ const Store = {
         if(!Array.isArray(S.state.queue) || !S.state.queue.length) S.state.queue = S.people.map(x => x.id);
         Store.saveCache();
         toast('Данные обновлены');
-        closeSheet(); render(); /* someone else changed the state: drop any open sheet, it's stale */
+        const sw = document.getElementById('sheetWrap');
+        if(!sw || sw.dataset.locked !== '1') closeSheet(); /* locked sheet (напр. пароли) не трогаем */
+        render(); /* someone else changed the state: open sheets are stale */
       })
       .subscribe(st => { if(st === 'CHANNEL_ERROR') console.warn('Ordo realtime: нет подключения'); });
     Store.pres();
@@ -2022,7 +2055,8 @@ function vHome(){
     const st = b.dataset.s;
     if(!S.state.current) return;
     S.state.current.marks = { ...(S.state.current.marks || {}), [pid]: st };
-    run(async () => { await Store.saveState(); render(); });
+    (S._pendingMarks || (S._pendingMarks = {}))[pid] = st;
+    queueMarkSave();
   });
   const gq = $('#goQueue'); if(gq) gq.onclick = () => { S.view = 'queue'; render(); };
 }
@@ -2154,8 +2188,12 @@ function vPeople(){
   const ap = $('#addP'); if(ap) ap.onclick = () => People.add();
   const ivb = $('#invP'); if(ivb) ivb.onclick = () => Invites.openSheet();
   const ip = $('#impP'); if(ip) ip.onclick = () => importPeople();
-  $('#pSearch').addEventListener('input', e => { $('#pList').innerHTML = list(e.target.value); bindPeopleRows(); });
+  $('#pSearch').addEventListener('input', e => { S.peopleFilter = e.target.value; S.peopleFilterGid = S.group?.id; $('#pList').innerHTML = list(e.target.value); bindPeopleRows(); });
   bindPeopleRows();
+  if(S.peopleFilter && S.peopleFilterGid === S.group?.id){
+    const inp = $('#pSearch');
+    if(inp){ inp.value = S.peopleFilter; $('#pList').innerHTML = list(S.peopleFilter); bindPeopleRows(); }
+  }
 }
 function bindPeopleRows(){
   document.querySelectorAll('[data-pause]').forEach(b => b.onclick = () => People.pause(b.dataset.pause));
@@ -2496,12 +2534,13 @@ function render(){
   else if(v === 'profile') vProfile();
   else if(v === 'admin' && isStaff()) vAdmin();
   else { S.view = 'home'; vHome(); }
+  paintDutyTimer(); /* таймер — сразу, а не через 15 секунд */
 }
 
 /* ---------------- init ---------------- */
 Theme.init();
 Easter.init();
-setInterval(() => {
+function paintDutyTimer(){
   const el = document.getElementById('dutyTimer');
   if(!el) return;
   const t = Date.parse(el.dataset.since);
@@ -2509,7 +2548,8 @@ setInterval(() => {
   const s = Math.floor((Date.now() - t) / 1000);
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
   el.textContent = h ? `${h} ч ${m} мин` : `${m} мин`;
-}, 15000);
+}
+setInterval(paintDutyTimer, 15000);
 if(!window.supabase){
   root.innerHTML = `<div class="auth"><div class="wrap"><div class="eyebrow">Ordo</div>
     <h1 style="font-size:40px;font-weight:800;margin:10px 0">Нет связи</h1>
