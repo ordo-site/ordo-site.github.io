@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-73.obclose';})();</script>
+window.__ORDO_BUILD='ordo-77.teacher';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -461,6 +461,7 @@ function authErrorMessage(e){
   const m = String(e?.message || e || '');
   for(const k in MAP) if(m.includes(k)) return MAP[k];
   if(/invalid login|invalid.*credentials|invalid.*password/i.test(m)) return 'Неверный логин или пароль.';
+  if(/email.*not.*confirmed/i.test(m)) return 'Почта не подтверждена. Проверьте письмо и перейдите по ссылке.';
   if(/user.*not.*found|no.*user/i.test(m)) return 'Такого логина нет. Проверьте написание.';
   if(/permission denied/i.test(m)) return 'Нет прав на это действие.';
   return m || 'Не получилось. Попробуйте ещё раз.';
@@ -650,7 +651,9 @@ const Store = {
       profile = r.data;
     }
     S.profile = profile;
+    if(profile.college_id){ try{ localStorage.removeItem('ordo-teacher-mode'); }catch(_){} }
     if(!profile.college_id){
+      if(teacherMode()){ renderTeacherWait(); return; }
       const av = await db.rpc('bootstrap_available');
       if(av.error) throw av.error;
       if(av.data === true){ renderFirstRun(); return; }
@@ -688,6 +691,16 @@ const Store = {
     if(s.error) throw s.error;
     S.people = p.data || [];
     S.memberRoles = {};
+    S.profileRoles = {};
+    if(isStaff()){
+      try{
+        const uids = (p.data || []).map(x => x.user_id).filter(Boolean);
+        if(uids.length){
+          const pr = await db.from('profiles').select('id,role').in('id', uids);
+          if(!pr.error) (pr.data || []).forEach(x => { if(x.role === 'teacher') S.profileRoles[x.id] = 'teacher'; });
+        }
+      }catch(_){ /* без ролей профилей тег преподавателя просто не покажется */ }
+    }
     if(!m.error) (m.data || []).forEach(x => { if(x.user_id) S.memberRoles[x.user_id] = x.role; });
     if(isLeader()){
       const cc = await db.rpc('get_group_claim_codes', { p_group_id: gid });
@@ -787,6 +800,7 @@ const Auth = {
       </form>
       <div class="foot rise" style="animation-delay:.28s">
         <p class="tiny">Логин и пароль выдаёт староста группы.</p>
+        <p class="tiny" style="margin-top:8px"><a href="#" id="loginTeacher">Я преподаватель</a></p>
         <p class="tiny" style="margin-top:8px"><a href="#" id="loginDocs">Документы</a></p>
         <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
       </div>
@@ -796,6 +810,7 @@ const Auth = {
     $('#loginTheme').onclick = Theme.toggle;
     $('#brandAuth').addEventListener('click', easterTap);
     $('#loginDocs').onclick = e => { e.preventDefault(); Docs.open(); };
+    $('#loginTeacher').onclick = e => { e.preventDefault(); Auth.loginTeacher(); };
     const pw = $('#pw');
     $('#pwEye').onclick = e => {
       const show = pw.type === 'password';
@@ -828,8 +843,94 @@ const Auth = {
       }
     });
   },
+  loginTeacher(){
+    root.innerHTML = `
+    <div class="auth">
+      <div class="rise brand" id="brandAuthT" style="animation-delay:.02s;cursor:pointer">${MARK}<span><b>Ordo</b></span></div>
+      <h1 class="rise" style="animation-delay:.08s">Вход<br>для преподавателя</h1>
+      <p class="sub rise" style="animation-delay:.14s">Войдите по почте или зарегистрируйтесь. Роль преподавателя выдаёт администратор.</p>
+      <form id="teacherForm" class="rise" style="animation-delay:.2s" novalidate>
+        <div class="err" id="teacherErr"></div>
+        <div class="field"><label for="tEmail">Почта</label>
+          <input class="inp" id="tEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="например, name@college.ru"></div>
+        <div class="field"><label for="tPw">Пароль</label>
+          <div class="pwbox"><input class="inp" id="tPw" type="password" autocomplete="current-password" placeholder="Пароль">
+          <button type="button" class="eyebtn" id="tPwEye" aria-label="Показать пароль" tabindex="-1">${ICON.eye}</button></div></div>
+        <button class="btn btn-p" id="teacherLoginBtn" type="submit" style="margin-top:6px">Войти</button>
+        <button class="btn btn-q" id="teacherRegBtn" type="button" style="width:100%;margin-top:10px">Зарегистрироваться</button>
+      </form>
+      <div class="tiny" id="teacherNote" style="margin-top:12px"></div>
+      <div class="foot rise" style="animation-delay:.28s">
+        <p class="tiny"><a href="#" id="teacherBack">Я студент</a></p>
+        <p class="tiny" style="margin-top:8px"><a href="#" id="teacherDocs">Документы</a></p>
+        <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
+      </div>
+      <button class="iconbtn themebtn" id="teacherTheme" aria-label="Переключить тему" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px"></button>
+    </div>`;
+    Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
+    $('#teacherTheme').onclick = Theme.toggle;
+    $('#brandAuthT').addEventListener('click', easterTap);
+    $('#teacherDocs').onclick = e => { e.preventDefault(); Docs.open(); };
+    $('#teacherBack').onclick = e => { e.preventDefault(); Auth.login(); };
+    const tpw = $('#tPw');
+    $('#tPwEye').onclick = e => {
+      const show = tpw.type === 'password';
+      tpw.type = show ? 'text' : 'password';
+      e.currentTarget.innerHTML = show ? ICON.eyeOff : ICON.eye;
+    };
+    const setTeacherFlag = () => { try{ localStorage.setItem('ordo-teacher-mode', '1'); }catch(_){} };
+    const showErr = msg => { const el = $('#teacherErr'); el.textContent = msg; el.classList.add('show'); };
+    $('#teacherForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = $('#teacherLoginBtn');
+      if(btn.disabled) return;
+      const email = $('#tEmail').value.trim().toLowerCase();
+      const password = tpw.value;
+      const err = $('#teacherErr');
+      err.classList.remove('show');
+      if(!email || !password){ showErr('Введите почту и пароль.'); return; }
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spin"></span>Входим…';
+      try{
+        const { error } = await db.auth.signInWithPassword({ email, password });
+        if(error) throw error;
+        setTeacherFlag();
+        await Store.boot();
+      }catch(x){
+        showErr(authErrorMessage(x));
+      }finally{
+        btn.disabled = false;
+        btn.textContent = 'Войти';
+      }
+    });
+    $('#teacherRegBtn').onclick = async () => {
+      const btn = $('#teacherRegBtn');
+      if(btn.disabled) return;
+      const email = $('#tEmail').value.trim().toLowerCase();
+      const password = tpw.value;
+      const err = $('#teacherErr');
+      err.classList.remove('show');
+      $('#teacherNote').textContent = '';
+      if(!email.includes('@')){ showErr('Введите почту.'); return; }
+      if(password.length < 8){ showErr('Пароль — минимум 8 символов.'); return; }
+      btn.disabled = true;
+      btn.textContent = 'Создаём…';
+      try{
+        const { data, error } = await db.auth.signUp({ email, password, options:{ data:{ display_name: email.split('@')[0] } } });
+        if(error) throw error;
+        if(data?.session){ setTeacherFlag(); await Store.boot(); return; }
+        $('#teacherNote').textContent = 'Проверьте почту: отправлено письмо для подтверждения. После подтверждения войдите снова.';
+      }catch(x){
+        showErr(authErrorMessage(x));
+      }finally{
+        btn.disabled = false;
+        btn.textContent = 'Зарегистрироваться';
+      }
+    };
+  },
   async logout(){
     try{ localStorage.removeItem('ordo-cache-' + S.user?.id); }catch(_){}
+    try{ localStorage.removeItem('ordo-teacher-mode'); }catch(_){}
     if(S._ch){ try{ await db.removeChannel(S._ch); }catch(_){} S._ch = null; }
     if(S._pr){ try{ await S._pr.untrack(); await db.removeChannel(S._pr); }catch(_){} S._pr = null; }
     if(S.online instanceof Set) S.online.clear();
@@ -1009,6 +1110,8 @@ const Duty = {
         </select></div>`).join('')}
         <p class="body2" data-solo-note hidden style="color:var(--sec)">Второй не назначен — дежурит один.</p></div>
       ${warn}
+      <div class="field" style="margin-top:6px"><label>Комментарий</label>
+        <textarea class="inp" id="stComment" rows="2" placeholder="Необязательно"></textarea></div>
       <div class="actions"><button class="btn btn-q" id="stNo">Отмена</button><button class="btn btn-p" id="stYes">Начать</button></div>`);
     const secondField = w.querySelector('[data-second]'), soloNote = w.querySelector('[data-solo-note]');
     const secondSel = secondField ? secondField.querySelector('select') : null;
@@ -1033,7 +1136,8 @@ const Duty = {
         const finalDebtors = ids.filter(id => dset.has(id)).length;
         if(finalDebtors > autoDebtors){ toast('В паре не больше одного должника'); return; } }
       const names = ids.map(id => S.people.find(p => p.id === id)?.name || '?');
-      S.state.current = { ids, names, startedAt:new Date().toISOString(), forIds, mainIds:ids.slice(0,2), marks:Object.fromEntries(ids.map(id => [id, STATUS.PRESENT])) };
+      const assignComment = (w.querySelector('#stComment')?.value || '').trim();
+      S.state.current = { ids, names, startedAt:new Date().toISOString(), forIds, mainIds:ids.slice(0,2), marks:Object.fromEntries(ids.map(id => [id, STATUS.PRESENT])), assignComment };
       /* rotation: spent turns go to the end; paused people keep their stored places */
       {
         const turnSet = new Set(turn);
@@ -1041,7 +1145,7 @@ const Duty = {
         S.state.queue = kept.concat(turn.filter(id => !kept.includes(id)));
       }
       await Store.saveState();
-      await Store.audit('duty_started', { ids, names });
+      await Store.audit('duty_started', { ids, names, assignComment });
       closeSheet(); render(); toast('Дежурство началось');
     });
   },
@@ -1060,6 +1164,7 @@ const Duty = {
           <button type="button" data-m="${esc(id)}|${STATUS.ABSENT}">Не было</button>
           <button type="button" data-m="${esc(id)}|${STATUS.ESCAPED}">Сбежал</button>
         </div></div>`).join('')}</div>
+      ${c.assignComment ? `<p class="body2" style="margin-top:6px">Комментарий при назначении: ${esc(c.assignComment)}</p>` : ''}
       <div class="field" style="margin-top:6px"><label>Комментарий</label>
         <textarea class="inp" id="finComment" rows="2" placeholder="Необязательно"></textarea></div>
       <div class="actions"><button class="btn btn-q" id="finNo">Отмена</button>
@@ -1091,7 +1196,8 @@ const Duty = {
       const main = c.mainIds || c.ids.slice(0, 2);
       const counted = main.some(id => marks[id] === STATUS.PRESENT);
       const now = new Date().toISOString();
-      const comment = w.querySelector('#finComment').value.trim();
+      const finComment = w.querySelector('#finComment').value.trim();
+      const comment = [c.assignComment || '', finComment].filter(Boolean).join(' · ');
       const words = { [STATUS.PRESENT]:'был(а)', [STATUS.ABSENT]:'не было', [STATUS.ESCAPED]:'сбежал(а)' };
       const entry = {
         at: now, counted,
@@ -1195,7 +1301,7 @@ const People = {
       sheet(`<div style="text-align:center;padding:8px 0 4px">
         <div style="font-size:44px">👑</div>
         <h3 style="margin-top:10px">Так решил Император</h3>
-        <p class="body2" style="margin-top:10px">Убрать участника может старший староста.<br>Отправьте заявку — её рассмотрят.</p>
+        <p class="body2" style="margin-top:10px">Убрать участника может старший староста или преподаватель.<br>Отправьте заявку — её рассмотрят.</p>
         <div class="actions"><button class="btn btn-q" id="rqNo">Понятно</button>
         <button class="btn btn-p" id="rqYes">Отправить заявку</button></div></div>`);
       $('#rqNo').onclick = closeSheet;
@@ -1319,6 +1425,24 @@ const Docs = {
 
 
 /* ---------------- accounts & admin ops (backend contract) ---------------- */
+/* ---------------- статистика дежурств (для экспорта) ---------------- */
+/* Считает по журналу за всё время: только записи с отметками, без списаний долгов.
+   Записи с sub:true не считаются отдельно — это та же отметка, что и основная. */
+function statsFromLog(log, people){
+  const rows = new Map((people || []).map(p => [p.id, { name:p.name, present:0, absent:0, escaped:0 }]));
+  (log || []).forEach(en => {
+    if(!en || !Array.isArray(en.people) || en.writeoff) return;
+    en.people.forEach(it => {
+      if(!it || it.sub) return;
+      const r = rows.get(it.id);
+      if(!r) return;
+      if(it.status === STATUS.PRESENT) r.present++;
+      else if(it.status === STATUS.ABSENT) r.absent++;
+      else if(it.status === STATUS.ESCAPED) r.escaped++;
+    });
+  });
+  return [...rows.values()].map(r => ({ ФИО:r.name, Был:r.present, 'Не было':r.absent, Сбежал:r.escaped, Всего:r.present + r.absent + r.escaped }));
+}
 const Authz = {
   async callAccounts(body){
     const { data, error } = await db.functions.invoke('ordo-accounts', { body:{ group_id:S.group.id, ...body } });
@@ -1484,9 +1608,11 @@ const Authz = {
       await ensureXlsx();
       const logRows = (S.state.log || []).map(e => ({ Дата:fmt(e.at), Событие:e.action || '', Комментарий:e.comment || '', Засчитано:e.counted ? 'Да' : 'Нет' }));
       const peopleRows = S.people.map(p => ({ ФИО:p.name, Аккаунт:p.user_id ? 'Подключён' : 'Не подключён' }));
+      const statsRows = statsFromLog(S.state.log, S.people);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(logRows), 'Журнал');
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(peopleRows), 'Люди');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['ФИО','Был','Не было','Сбежал','Всего'], ...statsRows.map(r => [r.ФИО, r.Был, r['Не было'], r.Сбежал, r.Всего])]), 'Статистика');
       XLSX.writeFile(wb, `ordo-${S.group.name}.xlsx`);
       toast('Файл сохранён');
     });
@@ -1784,6 +1910,7 @@ function vQueue(){
     if(isMe) tags.push('<span class="tag blue">вы</span>');
     const rl = p.user_id && S.memberRoles ? S.memberRoles[p.user_id] : null;
     if(rl === 'leader' || rl === 'head') tags.push('<span class="tag">староста</span>');
+    if(p.user_id && S.profileRoles && S.profileRoles[p.user_id] === 'teacher') tags.push('<span class="tag">преподаватель</span>');
     if(cur.has(p.id)) tags.push('<span class="tag blue">сейчас</span>');
     else if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
     const ord = S.orderMode && isLeader()
@@ -1877,6 +2004,7 @@ function vPeople(){
       if(p.user_id && p.user_id === S.user?.id) tags.push('<span class="tag blue">вы</span>');
       const rl = p.user_id && S.memberRoles ? S.memberRoles[p.user_id] : null;
       if(rl === 'leader' || rl === 'head') tags.push('<span class="tag">староста</span>');
+      if(p.user_id && S.profileRoles && S.profileRoles[p.user_id] === 'teacher') tags.push('<span class="tag">преподаватель</span>');
       if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
       if(p.data?.paused) tags.push('<span class="tag">пауза</span>');
       if(!p.user_id) tags.push('<span class="tag red">без аккаунта</span>');
@@ -2179,6 +2307,19 @@ function paintAuditFeed(el){
 }
 
 /* ---------------- first run / no group ---------------- */
+/* Режим входа преподавателя: флаг ставится при входе/регистрации по почте,
+   читается только для непривязанного профиля (без колледжа) и снимается при выходе. */
+function teacherMode(){
+  try{ return localStorage.getItem('ordo-teacher-mode') === '1'; }catch(_){ return false; }
+}
+function renderTeacherWait(){
+  root.innerHTML = `<div class="auth"><div class="wrap">
+    <div class="eyebrow rise">Преподаватель</div>
+    <h1 class="rise" style="font-size:40px;font-weight:800;letter-spacing:-.02em;margin:10px 0">Аккаунт<br>создан</h1>
+    <p class="body2 rise">Попросите администратора перевести вас в преподаватели, затем войдите снова.</p>
+    <button class="btn btn-q" id="twOut" style="width:100%;margin-top:22px">Выйти</button></div></div>`;
+  $('#twOut').onclick = () => Auth.logout();
+}
 function renderFirstRun(){
   root.innerHTML = `<div class="auth"><div class="wrap">
     <div class="eyebrow rise">Первый запуск</div>
