@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-78.obill';})();</script>
+window.__ORDO_BUILD='ordo-79.invites';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -637,13 +637,14 @@ const Store = {
     _userNav = false;
     try{
       const { data:{ session } } = await db.auth.getSession();
-      if(!session){ Auth.login(); return; }
+      if(!session){ if(Invite.param()){ Invite.showJoin(Invite.param()); return; } Auth.login(); return; }
       S.user = session.user;
       try{
         const c = JSON.parse(localStorage.getItem('ordo-cache-' + S.user.id) || 'null');
         if(c && c.group){ Object.assign(S, { profile:c.profile, group:c.group, membership:c.membership, people:c.people, state:c.state, memberRoles:c.memberRoles || {}, stateVer:null, fromCache:true }); if(c.reqN != null) S._reqN = c.reqN; S._cacheSig = sigPS(); S._wasCached = true; render(); }
       }catch(_){}
       await Store.loadUser();
+      if(Invite.param()){ Invite.showLoggedIn(Invite.param()); return; }
       if(Auth.mustChangePrompt()) return; /* вход по выданному паролю: сначала свой, остальное потом */
       Consent.check();
       Onboard.maybe();
@@ -1474,6 +1475,13 @@ const Authz = {
     if(data?.error) throw new Error(data.error);
     return data;
   },
+  /* публичные действия без группы: приглашения (есть и без входа) */
+  async callPublic(body){
+    const { data, error } = await db.functions.invoke('ordo-accounts', { body });
+    if(error){ let m = error.message; try{ m = (await error.context.json()).error || m; }catch(_){} throw new Error(m); }
+    if(data?.error) throw new Error(data.error);
+    return data;
+  },
   async createAccounts(){
     await run(async () => {
       sheet(`<h3>Создаём аккаунты…</h3><p class="body2" style="margin-top:8px">Заводим каждого по очереди — это может занять около минуты. Не закрывайте приложение.</p>
@@ -1640,6 +1648,169 @@ const Authz = {
       XLSX.writeFile(wb, `ordo-${S.group.name}.xlsx`);
       toast('Файл сохранён');
     });
+  }
+};
+const canInvite = () => isAdmin() || S.profile?.role === 'head' || S.membership?.role === 'leader';
+/* ---------------- приглашения (ordo-79.invites) ---------------- */
+/* Одноразовые ссылки-приглашения: токен живёт только в ссылке, в базе — лишь
+   его SHA-256. Ссылка показывается один раз при создании: потерял — отозви и создай новую. */
+const Invites = {
+  async renderInto(el){
+    el.innerHTML = `<div class="rows">
+      <button class="row" id="invNew"><div class="grow"><b>Создать ссылку</b><div class="sub">Одноразовая, действует 7 дней</div></div><span class="chev">›</span></button>
+      <div id="invFresh"></div>
+      <div id="invList"><p class="body2">Загружаем…</p></div>
+    </div>`;
+    el.querySelector('#invNew').onclick = () => Invites.create(el);
+    await Invites.refresh(el);
+  },
+  async refresh(el){
+    const list = el.querySelector('#invList'); if(!list) return;
+    try{
+      const d = await Authz.callAccounts({ action:'invite_list' });
+      const rows = d.invites || [];
+      list.innerHTML = rows.length ? rows.map(inv => {
+        const expired = new Date(inv.expires_at).getTime() < Date.now();
+        return `<div class="row"><div class="grow"><b>Ссылка от ${esc(fmt(inv.created_at))}</b><div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
+        <button class="linkbtn danger" data-invrev="${esc(inv.id)}">Отозвать</button></div>`;
+      }).join('') : '<p class="body2">Действующих ссылок нет.</p>';
+      list.querySelectorAll('[data-invrev]').forEach(b => b.onclick = async () => {
+        try{ await Authz.callAccounts({ action:'invite_revoke', invite_id: b.dataset.invrev }); toast('Ссылка отозвана'); await Invites.refresh(el); }
+        catch(e){ toast(authErrorMessage(e)); }
+      });
+    }catch(e){ list.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
+  },
+  async create(el){
+    const fresh = el.querySelector('#invFresh'); if(!fresh) return;
+    try{
+      const d = await Authz.callAccounts({ action:'invite_create' });
+      fresh.innerHTML = `<div class="row"><div class="grow"><b>Ссылка готова</b><div class="sub" style="word-break:break-all">${esc(d.link)}</div><div class="sub">Действует до ${esc(fmt(d.expires_at))} · показывается один раз, скопируй сейчас</div></div></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-q" id="invCopy" style="flex:1">Скопировать ссылку</button></div>`;
+      fresh.querySelector('#invCopy').onclick = async () => { try{ await navigator.clipboard.writeText(d.link); toast('Ссылка скопирована'); }catch(_){ toast('Не скопировалось — скопируй вручную'); } };
+      await Invites.refresh(el);
+    }catch(e){ toast(authErrorMessage(e)); }
+  },
+  openSheet(){
+    const w = sheet(`<h3>Приглашения</h3><div id="invSheetBox" style="margin-top:12px"></div><div class="actions"><button class="btn btn-q" id="invClose">Закрыть</button></div>`);
+    w.querySelector('#invClose').onclick = closeSheet;
+    Invites.renderInto(w.querySelector('#invSheetBox'));
+  }
+};
+/* приём ссылки ?invite= : залогиненным — подтверждение, незалогиненным — форма */
+const Invite = {
+  param(){
+    try{ return new URLSearchParams(location.search).get('invite') || ''; }catch(_){ return ''; }
+  },
+  clearParam(){
+    try{
+      const u = new URL(location.href);
+      u.searchParams.delete('invite');
+      history.replaceState(null, '', u.pathname + (u.search ? u.search : '') + (u.hash || ''));
+    }catch(_){}
+  },
+  info(token){ return Authz.callPublic({ action:'invite_info', token }); },
+  showLoggedIn(token){
+    const w = sheet(`<h3>Приглашение</h3><div id="invAccBody" style="margin-top:8px"><p class="body2">Проверяем ссылку…</p></div>`);
+    const body = w.querySelector('#invAccBody');
+    const dismiss = () => { closeSheet(); Invite.clearParam(); Store.boot(); };
+    Invite.info(token).then(info => {
+      if(!info.valid) throw new Error(info.error || 'Ссылка недействительна.');
+      body.innerHTML = `<p class="body2">Вступить в группу «${esc(info.group_name)}»? Ты попадёшь в её очередь.</p>
+        <div class="actions"><button class="btn btn-q" id="invNo">Отмена</button><button class="btn btn-p" id="invYes">Вступить</button></div>`;
+      body.querySelector('#invNo').onclick = dismiss;
+      body.querySelector('#invYes').onclick = async () => {
+        try{
+          const d = await Authz.callPublic({ action:'invite_accept', token });
+          closeSheet(); Invite.clearParam();
+          toast(d.already ? 'Ты уже в этой группе.' : `Добро пожаловать в группу «${d.group_name}»!`);
+          await Store.boot();
+        }catch(e){
+          body.innerHTML = `<p class="body2">${esc(authErrorMessage(e))}</p><div class="actions"><button class="btn btn-q" id="invOk2">Понятно</button></div>`;
+          body.querySelector('#invOk2').onclick = dismiss;
+        }
+      };
+    }).catch(e => {
+      body.innerHTML = `<p class="body2">${esc(authErrorMessage(e))}</p><div class="actions"><button class="btn btn-q" id="invOk">Понятно</button></div>`;
+      body.querySelector('#invOk').onclick = dismiss;
+    });
+  },
+  showJoin(token){
+    root.innerHTML = `<div class="auth"><div class="wrap">
+      <div class="eyebrow rise">Приглашение</div>
+      <h1 class="rise" style="font-size:40px;font-weight:800;letter-spacing:-.02em;margin:10px 0">Вступить<br>в группу</h1>
+      <div id="invJoinBody" class="rise"><p class="body2">Проверяем ссылку…</p></div></div></div>`;
+    const body = $('#invJoinBody');
+    const back = () => { Invite.clearParam(); Auth.login(); };
+    Invite.info(token).then(info => {
+      if(!info.valid){
+        body.innerHTML = `<p class="body2">${esc(info.error || 'Ссылка недействительна.')}</p><div style="margin-top:22px"><button class="btn btn-q" id="invBack" style="width:100%">К входу</button></div>`;
+        $('#invBack').onclick = back;
+        return;
+      }
+      body.innerHTML = `<p class="body2">Тебя пригласили в группу «${esc(info.group_name)}». Заполни данные — и ты в очереди.</p>
+      <form id="invForm" style="margin-top:22px" novalidate>
+        <div class="err" id="invErr"></div>
+        <div class="field"><label for="invName">Фамилия и имя</label><input class="inp" id="invName" autocomplete="name" placeholder="Например, Петров Иван"></div>
+        <div class="field"><label for="invEmail">Почта</label><input class="inp" id="invEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
+        <div class="field"><label for="invPw">Пароль</label><input class="inp" id="invPw" type="password" autocomplete="new-password" placeholder="Минимум 8 символов"></div>
+        <button class="btn btn-p" id="invGo" type="submit" style="margin-top:6px">Вступить в группу</button>
+        <button class="btn btn-q" id="invBack2" type="button" style="width:100%;margin-top:10px">У меня уже есть аккаунт</button>
+      </form>`;
+      $('#invBack2').onclick = back;
+      $('#invForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const err = $('#invErr'); err.classList.remove('show');
+        const name = $('#invName').value.trim(), email = $('#invEmail').value.trim().toLowerCase(), pw = $('#invPw').value;
+        if(!name || !email.includes('@') || pw.length < 8){ err.textContent = 'Заполни все поля: имя, почту и пароль от 8 символов.'; err.classList.add('show'); return; }
+        const btn = $('#invGo'); btn.disabled = true; btn.textContent = 'Вступаем…';
+        try{
+          const d = await Authz.callPublic({ action:'invite_accept', token, name, email, password: pw });
+          const { error } = await db.auth.signInWithPassword({ email, password: pw });
+          if(error) throw error;
+          Invite.clearParam();
+          toast(`Добро пожаловать в группу «${d.group_name}»!`);
+          await Store.boot();
+        }catch(x){
+          err.textContent = authErrorMessage(x); err.classList.add('show');
+          btn.disabled = false; btn.textContent = 'Вступить в группу';
+        }
+      });
+    }).catch(e => {
+      body.innerHTML = `<p class="body2">${esc(authErrorMessage(e))}</p><div style="margin-top:22px"><button class="btn btn-q" id="invBack3" style="width:100%">К входу</button></div>`;
+      $('#invBack3').onclick = back;
+    });
+  }
+};
+/* ---------------- вход по почте вместо логина (ordo-79.invites) ---------------- */
+/* Баннер — только тем, у кого почта синтетическая (@ordo.invalid). Скрытие на
+   устройстве — localStorage; после успешной смены баннер уходит сам: почта уже не синтетическая. */
+const EmailSwitch = {
+  isSynthetic(){ const em = S.user?.email || ''; return em.endsWith('@ordo.invalid'); },
+  dismissed(){ try{ return localStorage.getItem('ordo-email-banner-off') === '1'; }catch(_){ return false; } },
+  bannerHtml(){
+    if(!EmailSwitch.isSynthetic() || EmailSwitch.dismissed()) return '';
+    return `<div class="notice" style="display:flex;gap:10px;align-items:flex-start"><div style="flex:1"><b>Вход по почте</b><div style="margin-top:4px">Сейчас ты входишь по логину. Привяжи почту — и сможешь входить по ней вместо логина. Пароль не изменится.</div></div>
+    <button class="linkbtn" id="emailBannerX" aria-label="Скрыть">×</button></div>
+    <div style="margin-top:10px"><button class="btn btn-q" id="emailBannerGo">Привязать почту</button></div>`;
+  },
+  openSheet(){
+    const w = sheet(`<h3>Вход по почте</h3>
+      <p class="body2" style="margin-top:8px">Введи почту — она станет твоим логином. Пароль останется прежним, а старый логин перестанет работать.</p>
+      <div class="field" style="margin-top:14px"><label>Почта</label><input class="inp" id="esEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
+      <div class="err" id="esErr"></div>
+      <div class="actions"><button class="btn btn-q" id="esNo">Отмена</button><button class="btn btn-p" id="esGo">Сменить на почту</button></div>`);
+    w.querySelector('#esNo').onclick = closeSheet;
+    w.querySelector('#esGo').onclick = async () => {
+      const err = w.querySelector('#esErr'); err.classList.remove('show');
+      const email = w.querySelector('#esEmail').value.trim().toLowerCase();
+      if(!email.includes('@') || email.endsWith('@ordo.invalid')){ err.textContent = 'Введи настоящую почту.'; err.classList.add('show'); return; }
+      try{
+        const d = await Authz.callAccounts({ action:'email_switch', email });
+        if(S.user) S.user.email = d.email;
+        try{ localStorage.setItem('ordo-email-banner-off', '1'); }catch(_){}
+        closeSheet(); toast('Готово: теперь входи по почте ' + d.email); render();
+      }catch(e){ err.textContent = authErrorMessage(e); err.classList.add('show'); }
+    };
   }
 };
 let xlsxP = null;
@@ -1908,8 +2079,10 @@ function vHome(){
     ? `<p class="tiny" style="margin-top:22px">Вы №${meIdx + 1} в очереди</p>`
     : '';
 
-  const html = `${hero}${liveMarks}${action}${nextLine}${debtLine}${meLine}`;
+  const html = `${EmailSwitch.bannerHtml()}${hero}${liveMarks}${action}${nextLine}${debtLine}${meLine}`;
   shell(html, 'home');
+  const eb = $('#emailBannerGo'); if(eb) eb.onclick = () => EmailSwitch.openSheet();
+  const ebX = $('#emailBannerX'); if(ebX) ebX.onclick = () => { try{ localStorage.setItem('ordo-email-banner-off', '1'); }catch(_){} render(); };
   const sb = $('#startBtn'); if(sb) sb.onclick = () => { if(sb.dataset.closed) toast('Назначение доступно в будни с 8:00 до 16:30.'); else Duty.start(); };
   const fb = $('#finishBtn'); if(fb) fb.onclick = () => Duty.finish();
   document.querySelectorAll('[data-live] button').forEach(b => b.onclick = () => {
@@ -2019,6 +2192,7 @@ function initQueueSort(){
 
 /* ---------------- people ---------------- */
 function vPeople(){
+  const canInviteP = canInvite();
   const ds = new Set(debtorIds());
   const list = (filter='') => S.people
     .filter(p => !filter || p.name.toLowerCase().includes(filter.toLowerCase()))
@@ -2039,12 +2213,14 @@ function vPeople(){
         <button class="linkbtn danger" data-rm="${esc(p.id)}">Убрать</button></div>`;
     }).join('');
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Группа</h1>
+    ${canInviteP ? '<button class="linkbtn" id="invP">Приглашения</button>' : ''}
     ${isStaff() ? '<button class="linkbtn" id="addP">＋ Добавить</button>' : ''}</div>
     <p class="body2">${S.people.length} ${peopleWord(S.people.length)}</p>
     <div class="field" style="margin-top:14px"><input class="inp" id="pSearch" placeholder="Найти человека" autocomplete="off"></div>
     <div class="rows" id="pList">${list()}</div>
     ${isStaff() ? '<button class="linkbtn" id="impP" style="margin-top:14px">Импорт из Excel / CSV</button>' : ''}`, 'people');
   const ap = $('#addP'); if(ap) ap.onclick = () => People.add();
+  const ivb = $('#invP'); if(ivb) ivb.onclick = () => Invites.openSheet();
   const ip = $('#impP'); if(ip) ip.onclick = () => importPeople();
   $('#pSearch').addEventListener('input', e => { $('#pList').innerHTML = list(e.target.value); bindPeopleRows(); });
   bindPeopleRows();
@@ -2217,6 +2393,7 @@ async function vAdmin(){
     const mrole = new Map((members.data || []).map(m => [m.user_id, m.role]));
     const paused = !!S.group?.settings?.paused;
     const adOpen = adSecGet();
+    const showInvites = canInvite();
     let secN = 0;
     const sec = (key, title, inner) => {
       const open = !!adOpen[key];
@@ -2246,6 +2423,7 @@ async function vAdmin(){
         <button class="linkbtn" data-rst="${esc(p.id)}">Пароль</button>` : '<span class="tag">вы</span>'}</div>`;
       }).join('')}
     </div>`) +
+    (showInvites ? sec('invites', 'Приглашения', `<div id="invBox"></div>`) : '') +
     sec('queue', 'Состояние очереди', `
     <div class="rows">
       <button class="row" id="adPause"><div class="grow"><b>${paused ? 'Возобновить назначения' : 'Приостановить назначения'}</b></div><span class="chev">›</span></button>
@@ -2273,6 +2451,7 @@ async function vAdmin(){
       w.querySelector('#dgYes').onclick = () => { if(w.querySelector('#dgIn').value.trim() !== gname){ toast('Название не совпало'); return; } closeSheet(); Authz.deleteGroup(gdelId); };
     });
     $('#mkAcc').onclick = () => Authz.createAccounts();
+    const invBox = $('#invBox'); if(invBox) Invites.renderInto(invBox);
     const pwa = $('#pwAgain'); if(pwa) pwa.onclick = () => Authz.showPasswords(S._lastPw);
     body.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.role.split('|'); Authz.setRole(u, m === '1', b); });
     body.querySelectorAll('[data-rst]').forEach(b => b.onclick = () => Authz.resetDialog(b.dataset.rst));
@@ -2286,7 +2465,7 @@ async function vAdmin(){
 const AUDIT_CATS = {
   all:   { label:'Все',      test:() => true },
   ppl:   { label:'Люди',     test:a => /^(person_|removal_|add_)/.test(a) },
-  acc:   { label:'Доступ',   test:a => /^(password_reset|accounts_created|leader_)/.test(a) },
+  acc:   { label:'Доступ',   test:a => /^(password_reset|accounts_created|leader_|invite_)/.test(a) },
   sys:   { label:'Система',  test:a => /^(state_restored|group_paused|group_resumed|duty_outside_schedule|history_deleted|group_created|group_reset|queue_reordered)$/.test(a) },
 };
 async function renderAuditFeed(el){
@@ -2310,7 +2489,7 @@ function paintAuditFeed(el){
   const rows = S._auditRows || [], nm = S._auditNames || new Map();
   const f = S.auditFilter || 'all';
   const cat = AUDIT_CATS[f] || AUDIT_CATS.all;
-  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена', queue_reordered:'Очередь изменена' };
+  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', invite_created:'Приглашение создано', invite_revoked:'Приглашение отозвано', invite_accepted:'Вступление по приглашению', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена', queue_reordered:'Очередь изменена' };
   const chips = Object.entries(AUDIT_CATS).map(([k, c]) =>
     `<button class="fchip${f === k ? ' on' : ''}" data-af="${k}">${c.label}</button>`).join('');
   let html = '', last = '';
