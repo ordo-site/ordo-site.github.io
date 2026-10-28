@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-90.rowbadge';})();</script>
+window.__ORDO_BUILD='ordo-91.roleguide';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -989,7 +989,7 @@ const Consent = {
   }
 };
 
-/* ---------------- onboard (once) ---------------- */
+/* ---------------- onboard (once per role) ---------------- */
 function installStepsHtml(){
   const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
   const ios = /iPhone|iPad|iPod/.test(ua) || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1004,12 +1004,27 @@ function installStepsHtml(){
 function obIll(kind){
   if(kind === 'queue') return `<div class="oill rise"><div class="q"><div class="ochip hot">А</div><div class="ochip">Б</div><div class="ochip">В</div><div class="orot">↻</div></div></div>`;
   if(kind === 'card') return `<div class="oill rise"><div class="dcard"><div><div class="ot">Ты — следующий</div><div class="os">Отметь дежурство одним касанием</div></div><div class="ock">✓</div></div></div>`;
+  if(kind === 'staff') return `<div class="oill rise"><div class="dcard"><div><div class="ot">Группа под контролем</div><div class="os">Назначения, отметки, долги — всё здесь</div></div><div class="ock">✓</div></div></div>`;
   return `<div class="oill rise"><div class="prow"><div class="ophone"><div class="obar">ordo-site.github.io</div><div class="oshare"><div class="up">↑</div><div class="box"></div></div></div><div class="oarr">→</div><div class="oapp">O</div></div></div>`;
 }
 const Onboard = {
   KEY:'ordo-onboarded-v2',
-  done(){ try{ return !!localStorage.getItem(Onboard.KEY); }catch(_){ return true; } },
-  mark(){ try{ localStorage.setItem(Onboard.KEY, '1'); }catch(_){} },
+  /* порядок важен: teacher и staff тоже проходят isLeader(), поэтому их проверяем первыми */
+  roleKey(){
+    const r = S.profile?.role;
+    if(r === 'teacher') return 'teacher';
+    if(r === 'admin' || r === 'head') return 'staff';
+    if(isLeader()) return 'leader';
+    return 'student';
+  },
+  key(){ return Onboard.KEY + ':' + Onboard.roleKey(); },
+  done(){ try{
+    if(localStorage.getItem(Onboard.key())) return true;
+    /* студенты старый общий флаг засчитываем: студенческий гайд они уже видели */
+    if(Onboard.roleKey() === 'student' && localStorage.getItem(Onboard.KEY)) return true;
+    return false;
+  }catch(_){ return true; } },
+  mark(){ try{ localStorage.setItem(Onboard.key(), '1'); }catch(_){} },
   maybe(){
     if(Onboard.done() || !S.user) return;
     if(document.getElementById('onboardBox')) return;
@@ -1023,13 +1038,32 @@ const Onboard = {
     Onboard.show(0);
   },
   show(i){
-    const slides = [
+    const student = [
       { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего. Очередь сама знает, кто следующий, — тебе остаётся только дежурить.',
         btn:'Дальше', skip:true, ill:'queue' },
       { eyebrow:'Как это работает', title:'Вот твоя очередь', body:'Следи за своей позицией, отмечай дежурства одним касанием. Остальное Ordo сделает сам.',
-        btn:'Дальше', skip:false, ill:'card' },
-      { eyebrow:'Всегда под рукой', title:'Ordo — на экран «Домой»', install:true, btn:'Готово', skip:false, ill:'phone' }
+        btn:'Дальше', skip:false, ill:'card' }
     ];
+    const install = { eyebrow:'Всегда под рукой', title:'Ordo — на экран «Домой»', install:true, btn:'Готово', skip:false, ill:'phone' };
+    let slides;
+    const rk = Onboard.roleKey();
+    if(rk === 'teacher') slides = [
+      { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего — теперь и для преподавателей. Вы видите только группы, которые вам назначил администратор.',
+        btn:'Дальше', skip:true, ill:'queue' },
+      { eyebrow:'Ваши группы', title:'Очередь, журнал и статистика', body:'Внутри назначенной группы — всё: очередь, отметки, журнал, выгрузка статистики и приглашения.',
+        btn:'Дальше', skip:false, ill:'staff' },
+      install];
+    else if(rk === 'staff') slides = [
+      { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего. Вы управляете колледжем: группы, доступ, приглашения и преподаватели.',
+        btn:'Дальше', skip:true, ill:'queue' },
+      { eyebrow:'Управление', title:'Группы, доступ, события', body:'Создавайте группы, выдавайте роли и назначайте преподавателям группы — без назначения преподаватель ничего не видит.',
+        btn:'Дальше', skip:false, ill:'staff' },
+      install];
+    else if(rk === 'leader') slides = [...student,
+      { eyebrow:'Староста', title:'Ты управляешь очередью', body:'Назначай дежурства, отмечай был — не был — сбежал, следи за долгами. Всё, что ты меняешь, сразу видят все.',
+        btn:'Дальше', skip:false, ill:'staff' },
+      install];
+    else slides = [...student, install];
     // оверлей один на весь гайд: пересоздание давало вспышку (fade .3s) при каждом слайде
     let d = document.getElementById('onboardBox');
     if(!d){
