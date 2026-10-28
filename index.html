@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-81.rmteacher';})();</script>
+window.__ORDO_BUILD='ordo-82.invfix';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1603,7 +1603,7 @@ const Invites = {
         const expired = new Date(inv.expires_at).getTime() < Date.now();
         return `<div class="row"><div class="grow"><b>Ссылка от ${esc(fmt(inv.created_at))}</b><div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
         <button class="linkbtn danger" data-invrev="${esc(inv.id)}">Отозвать</button></div>`;
-      }).join('') : '<p class="body2">Действующих ссылок нет.</p>';
+      }).join('') : '<div class="row"><p class="body2">Действующих ссылок нет.</p></div>';
       list.querySelectorAll('[data-invrev]').forEach(b => b.onclick = async () => {
         try{ await Authz.callAccounts({ action:'invite_revoke', invite_id: b.dataset.invrev }); toast('Ссылка отозвана'); await Invites.refresh(el); }
         catch(e){ toast(authErrorMessage(e)); }
@@ -1614,8 +1614,10 @@ const Invites = {
     const fresh = el.querySelector('#invFresh'); if(!fresh) return;
     try{
       const d = await Authz.callAccounts({ action:'invite_create' });
-      fresh.innerHTML = `<div class="row"><div class="grow"><b>Ссылка готова</b><div class="sub" style="word-break:break-all">${esc(d.link)}</div><div class="sub">Действует до ${esc(fmt(d.expires_at))} · показывается один раз, скопируй сейчас</div></div></div>
-      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-q" id="invCopy" style="flex:1">Скопировать ссылку</button></div>`;
+      const tok = d.token || (d.link || '').split('invite=')[1] || '';
+      const shortLink = tok ? 'ordo-site.github.io/?invite=' + tok.slice(0,6) + '…' + tok.slice(-4) : d.link;
+      fresh.innerHTML = `<div class="row"><div class="grow"><b>Ссылка готова</b><div class="sub" style="word-break:break-all;color:var(--text)">${esc(shortLink)}</div><div class="sub" style="margin-top:6px">Действует до ${esc(fmt(d.expires_at))} · показывается один раз, скопируй сейчас</div></div></div>
+      <div style="display:flex;gap:8px;margin:10px 16px"><button class="btn btn-q" id="invCopy" style="flex:1">Скопировать ссылку</button></div>`;
       fresh.querySelector('#invCopy').onclick = async () => { try{ await navigator.clipboard.writeText(d.link); toast('Ссылка скопирована'); }catch(_){ toast('Не скопировалось — скопируй вручную'); } };
       await Invites.refresh(el);
     }catch(e){ toast(authErrorMessage(e)); }
