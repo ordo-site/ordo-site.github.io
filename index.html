@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-86.people';})();</script>
+window.__ORDO_BUILD='ordo-87.tassign';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -708,9 +708,20 @@ const Store = {
       renderNoGroup(); return;
     }
     if(['admin','head','teacher'].includes(profile.role)){
-      const g = await db.from('groups').select('*').eq('college_id', profile.college_id).order('created_at');
+      let g;
+      if(profile.role === 'teacher'){
+        /* преподаватель видит только назначенные ему группы */
+        const ta = await db.from('teacher_assignments').select('group_id').eq('teacher_id', S.user.id);
+        if(ta.error) throw ta.error;
+        const ids = (ta.data || []).map(x => x.group_id);
+        S.teacherGroups = new Set(ids);
+        if(!ids.length){ renderNoTeacherGroups(); return; }
+        g = await db.from('groups').select('*').in('id', ids).order('created_at');
+      } else {
+        g = await db.from('groups').select('*').eq('college_id', profile.college_id).order('created_at');
+      }
       if(g.error) throw g.error;
-      if(!g.data?.length){ renderNoGroup(); return; }
+      if(!g.data?.length){ profile.role === 'teacher' ? renderNoTeacherGroups() : renderNoGroup(); return; }
       S.groups = (g.data || []).sort(groupSort);
       const saved = (()=>{ try{ return localStorage.getItem('dutysite-active-group'); }catch(_){ return null; } })();
       S.group = g.data.find(x => x.id === saved) || g.data[0];
@@ -1526,9 +1537,11 @@ const Authz = {
       await run(async () => {
         await Authz.callAccounts({ action:'teacher_role', user_id:userId, make:!!make });
         if(S.profileRoles) S.profileRoles[userId] = make ? 'teacher' : 'student';
-        if(btn && btn.isConnected){
+        if(make){ render(); }
+        else if(btn && btn.isConnected){
           btn.dataset.teacher = userId + '|' + (make ? '0' : '1');
           btn.textContent = make ? 'Снять преподавателя' : 'Преподаватель';
+          btn.closest('.row')?.querySelector('[data-tgroups]')?.remove();
         } else {
           render();
         }
@@ -1613,7 +1626,7 @@ const Authz = {
     });
   }
 };
-const canInvite = () => isAdmin() || S.profile?.role === 'head' || S.membership?.role === 'leader';
+const canInvite = () => isAdmin() || S.profile?.role === 'head' || S.membership?.role === 'leader' || (S.profile?.role === 'teacher' && !!S.teacherGroups?.has(S.group?.id));
 /* ---------------- приглашения (ordo-79.invites) ---------------- */
 /* Одноразовые ссылки-приглашения: токен живёт только в ссылке, в базе — лишь
    его SHA-256. Ссылка показывается один раз при создании: потерял — отозви и создай новую. */
@@ -2353,6 +2366,24 @@ function adSecOpen(key){ /* programmatically open a collapsed admin section */
   const head = document.querySelector(`[data-sec="${key}"]`), bd = document.querySelector(`[data-secbody="${key}"]`);
   if(head && bd && bd.hasAttribute('hidden')){ bd.removeAttribute('hidden'); head.classList.add('open'); adSecSet(key, true); }
 }
+/* ---------------- группы преподавателя (назначение админом) ---------------- */
+const TeacherGroups = {
+  async open(teacherId){
+    const w = sheet(`<h3>Группы преподавателя</h3><p class="body2" style="margin-top:8px">Без групп преподаватель ничего не видит. Отметьте группы, которые он курирует.</p><div class="rows" id="tgList" style="margin-top:14px"><div class="row"><p class="body2">Загружаем…</p></div></div>`);
+    const list = w.querySelector('#tgList');
+    try{
+      const d = await Authz.callAccounts({ action:'teacher_assignments', teacher_id: teacherId });
+      const assigned = new Set(d.group_ids || []);
+      const groups = (S.groups || []);
+      if(!groups.length){ list.innerHTML = `<div class="row"><p class="body2">Нет групп.</p></div>`; return; }
+      list.innerHTML = groups.map(g => `<label class="row" style="cursor:pointer"><div class="grow"><b>${esc(g.name)}</b></div><input type="checkbox" data-tg="${esc(g.id)}" ${assigned.has(g.id) ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--accent)"></label>`).join('');
+      list.querySelectorAll('[data-tg]').forEach(cb => cb.onchange = async () => {
+        try{ await Authz.callAccounts({ action:'teacher_assign', teacher_id: teacherId, group_id: cb.dataset.tg, assign: cb.checked }); toast(cb.checked ? 'Группа добавлена' : 'Группа убрана'); }
+        catch(e){ cb.checked = !cb.checked; toast(authErrorMessage(e)); }
+      });
+    }catch(e){ list.innerHTML = `<div class="row"><p class="body2">${esc(authErrorMessage(e))}</p></div>`; }
+  }
+};
 async function vAdmin(){
   if(!isStaff()){ S.view = 'profile'; render(); return; }
   const freshChrome = !document.getElementById('adBody');
@@ -2388,9 +2419,9 @@ async function vAdmin(){
     body.innerHTML =
     sec('groups', 'Группы', `
     <div class="rows">
-      <button class="row" id="gNew"><div class="grow" style="color:var(--accent)">＋ Новая группа</div></button>
+      ${(isAdmin() || S.profile?.role === 'head') ? `<button class="row" id="gNew"><div class="grow" style="color:var(--accent)">＋ Новая группа</div></button>` : ''}
       ${S.groups.map(g => `<div class="row"><div class="grow"><b>${esc(g.name)}</b>${g.id === gid ? ' <span class="tag blue">текущая</span>' : ''}</div>${(isAdmin() || S.profile?.role === 'head') ? `<button class="linkbtn danger" data-gdel="${g.id}" data-gname="${esc(g.name)}">Удалить</button>` : ''}</div>`).join('')}
-      <button class="row" id="gRename"><div class="grow">Переименовать группу</div><span class="chev">›</span></button>
+      ${(isAdmin() || S.profile?.role === 'head') ? `<button class="row" id="gRename"><div class="grow">Переименовать группу</div><span class="chev">›</span></button>` : ''}
     </div>`) +
     sec('access', 'Доступ', `
     <div class="rows">
@@ -2402,6 +2433,7 @@ async function vAdmin(){
         const isT = S.profileRoles?.[p.user_id] === 'teacher';
         const btns = p.user_id !== S.user.id ? `<button class="linkbtn" data-role="${esc(p.user_id)}|${isL ? 0 : 1}">${isL ? 'Снять' : 'Староста'}</button>
         ${isAdmin() ? `<button class="linkbtn" data-teacher="${esc(p.user_id)}|${isT ? 0 : 1}">${isT ? 'Снять преподавателя' : 'Преподаватель'}</button>` : ''}
+        ${isAdmin() && isT ? `<button class="linkbtn" data-tgroups="${esc(p.user_id)}">Группы</button>` : ''}
         <button class="linkbtn" data-rst="${esc(p.id)}">Пароль</button>` : '';
         return `<div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><div class="grow"><b>${esc(p.name)}</b>${p.user_id === S.user.id ? ' <span class="tag">вы</span>' : ''}<div class="sub">${isL ? 'староста' : 'студент'}</div></div>${btns ? `<div style="display:flex;flex-wrap:wrap;gap:0 8px;margin-left:-4px">${btns}</div>` : ''}</div>`;
       }).join('')}
@@ -2424,8 +2456,8 @@ async function vAdmin(){
       if(open){ bd.removeAttribute('hidden'); b.classList.add('open'); } else { bd.setAttribute('hidden', ''); b.classList.remove('open'); }
       adSecSet(k, open);
     });
-    $('#gNew').onclick = () => Authz.createGroup();
-    $('#gRename').onclick = () => Authz.renameGroup();
+    const gNew = $('#gNew'); if(gNew) gNew.onclick = () => Authz.createGroup();
+    const gRename = $('#gRename'); if(gRename) gRename.onclick = () => Authz.renameGroup();
     body.querySelectorAll('[data-gdel]').forEach(b => b.onclick = e => { e.stopPropagation();
       const gname = b.dataset.gname, gdelId = b.dataset.gdel;
       const w = sheet(`<h3>Удалить группу?</h3><p class="body2" style="margin-top:8px">«${esc(gname)}»: люди, очередь и журнал исчезнут без следа. Аккаунты людей сохранятся. Это нельзя отменить.</p><div class="field" style="margin-top:14px"><label>Для подтверждения введите название группы</label><input class="inp" id="dgIn" autocomplete="off" placeholder="${esc(gname)}"></div><div class="actions"><button class="btn btn-q" id="dgNo">Отмена</button><button class="btn btn-danger-q" id="dgYes">Удалить</button></div>`);
@@ -2438,6 +2470,7 @@ async function vAdmin(){
     const pwa = $('#pwAgain'); if(pwa) pwa.onclick = () => Authz.showPasswords(S._lastPw);
     body.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.role.split('|'); Authz.setRole(u, m === '1', b); });
   body.querySelectorAll('[data-teacher]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.teacher.split('|'); Authz.setTeacher(u, m === '1', b); });
+  body.querySelectorAll('[data-tgroups]').forEach(b => b.onclick = () => TeacherGroups.open(b.dataset.tgroups));
     body.querySelectorAll('[data-rst]').forEach(b => b.onclick = () => Authz.resetDialog(b.dataset.rst));
     body.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => Authz.restoreVersion(b.dataset.ver));
     $('#adPause').onclick = () => Authz.setPaused(!paused);
@@ -2532,6 +2565,15 @@ function renderNoGroup(){
       if(r.error) throw r.error;
       toast('Профиль подключён'); await Store.loadUser();
     }));
+}
+
+function renderNoTeacherGroups(){
+  root.innerHTML = `<div class="auth"><div class="wrap">
+    <div class="eyebrow rise">Подключение</div>
+    <h1 class="rise" style="font-size:40px;font-weight:800;letter-spacing:-.02em;margin:10px 0">Пока нет групп</h1>
+    <p class="body2 rise">Администратор ещё не прикрепил вас к группам. Как только прикрепит — войдите заново, и группы появятся.</p>
+    <div class="rise" style="margin-top:22px"><button class="btn btn-q" id="ntgOut" style="width:100%">Выйти</button></div></div></div>`;
+  $('#ntgOut').onclick = () => Auth.logout();
 }
 
 /* ---------------- router ---------------- */
