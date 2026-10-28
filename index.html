@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-77.teacher';})();</script>
+window.__ORDO_BUILD='ordo-78.obill';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -301,6 +301,24 @@ details.faq .policy p{margin:0 0 10px}
 .ostep .n{flex:none;width:34px;height:34px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
 .ostep .t{font-size:16px;font-weight:600}
 .ostep .s{font-size:13.5px;color:var(--sec);margin-top:3px}
+/* onboard illustrations: pure CSS mini-interfaces, theme vars only, no images */
+.oill{display:flex;justify-content:center;margin:20px 0 4px}
+.oill .q{display:flex;align-items:center;gap:10px}
+.ochip{width:46px;height:46px;border-radius:50%;background:var(--fill);color:var(--sec);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex:none}
+.ochip.hot{box-shadow:0 0 0 2px var(--accent);color:var(--text)}
+.orot{font-size:22px;color:var(--sec);margin-left:2px}
+.oill .dcard{display:flex;align-items:center;gap:14px;background:var(--bg2);border:1px solid var(--hair);border-radius:18px;padding:14px 16px;width:100%}
+.oill .dcard .ot{font-size:17px;font-weight:700}
+.oill .dcard .os{font-size:13.5px;color:var(--sec);margin-top:2px}
+.ock{flex:none;width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+.oill .prow{display:flex;align-items:center;justify-content:center;gap:16px}
+.ophone{width:118px;height:122px;background:var(--bg2);border:1px solid var(--hair);border-radius:20px;padding:10px 10px 8px;display:flex;flex-direction:column;flex:none}
+.ophone .obar{font-size:10px;color:var(--sec);background:var(--fill);border-radius:999px;padding:5px 8px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ophone .oshare{margin-top:auto;display:flex;flex-direction:column;align-items:center}
+.ophone .oshare .up{font-size:16px;line-height:1;color:var(--accent);margin-bottom:-7px}
+.ophone .oshare .box{width:22px;height:20px;border:2px solid var(--sec);border-radius:5px;background:var(--bg2)}
+.oarr{font-size:22px;color:var(--sec);flex:none}
+.oapp{flex:none;width:52px;height:52px;border-radius:14px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800}
 a.row{color:inherit;text-decoration:none}
 a.row:active{background:var(--fill)}
 
@@ -801,7 +819,7 @@ const Auth = {
       <div class="foot rise" style="animation-delay:.28s">
         <p class="tiny">Логин и пароль выдаёт староста группы.</p>
         <p class="tiny" style="margin-top:8px"><a href="#" id="loginTeacher">Я преподаватель</a></p>
-        <p class="tiny" style="margin-top:8px"><a href="#" id="loginDocs">Документы</a></p>
+        <p class="tiny" style="margin-top:16px"><a href="#" id="loginDocs">Документы</a></p>
         <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
       </div>
       <button class="iconbtn themebtn" id="loginTheme" aria-label="Переключить тему" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px"></button>
@@ -862,7 +880,7 @@ const Auth = {
       <div class="tiny" id="teacherNote" style="margin-top:12px"></div>
       <div class="foot rise" style="animation-delay:.28s">
         <p class="tiny"><a href="#" id="teacherBack">Я студент</a></p>
-        <p class="tiny" style="margin-top:8px"><a href="#" id="teacherDocs">Документы</a></p>
+        <p class="tiny" style="margin-top:16px"><a href="#" id="teacherDocs">Документы</a></p>
         <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
       </div>
       <button class="iconbtn themebtn" id="teacherTheme" aria-label="Переключить тему" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px"></button>
@@ -1027,6 +1045,11 @@ function installStepsHtml(){
   return `<div class="osteps rise">${steps.map(([n,t,s]) =>
     `<div class="ostep"><div class="n">${n}</div><div><div class="t">${t}</div><div class="s">${s}</div></div></div>`).join('')}</div>`;
 }
+function obIll(kind){
+  if(kind === 'queue') return `<div class="oill rise"><div class="q"><div class="ochip hot">А</div><div class="ochip">Б</div><div class="ochip">В</div><div class="orot">↻</div></div></div>`;
+  if(kind === 'card') return `<div class="oill rise"><div class="dcard"><div><div class="ot">Ты — следующий</div><div class="os">Отметь дежурство одним касанием</div></div><div class="ock">✓</div></div></div>`;
+  return `<div class="oill rise"><div class="prow"><div class="ophone"><div class="obar">ordo-site.github.io</div><div class="oshare"><div class="up">↑</div><div class="box"></div></div></div><div class="oarr">→</div><div class="oapp">O</div></div></div>`;
+}
 const Onboard = {
   KEY:'ordo-onboarded-v2',
   done(){ try{ return !!localStorage.getItem(Onboard.KEY); }catch(_){ return true; } },
@@ -1046,10 +1069,10 @@ const Onboard = {
   show(i){
     const slides = [
       { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего. Очередь сама знает, кто следующий, — тебе остаётся только дежурить.',
-        btn:'Дальше', skip:true },
+        btn:'Дальше', skip:true, ill:'queue' },
       { eyebrow:'Как это работает', title:'Вот твоя очередь', body:'Следи за своей позицией, отмечай дежурства одним касанием. Остальное Ordo сделает сам.',
-        btn:'Дальше', skip:false },
-      { eyebrow:'Всегда под рукой', title:'Ordo — на экран «Домой»', install:true, btn:'Готово', skip:false }
+        btn:'Дальше', skip:false, ill:'card' },
+      { eyebrow:'Всегда под рукой', title:'Ordo — на экран «Домой»', install:true, btn:'Готово', skip:false, ill:'phone' }
     ];
     // оверлей один на весь гайд: пересоздание давало вспышку (fade .3s) при каждом слайде
     let d = document.getElementById('onboardBox');
@@ -1061,6 +1084,7 @@ const Onboard = {
     const s = slides[i];
     d.innerHTML = `<div class="ocard"><div class="eyebrow rise">${esc(s.eyebrow)}</div>
       <h1 class="rise">${esc(s.title)}</h1>
+      ${obIll(s.ill)}
       ${s.install ? installStepsHtml() : `<p class="body2 rise">${esc(s.body)}</p>`}
       <div class="actions rise"><button class="btn btn-p" id="obNext">${esc(s.btn)}</button>
       ${s.skip ? '<button class="linkbtn" id="obSkip" style="align-self:center">Пропустить</button>' : ''}</div></div>`;
