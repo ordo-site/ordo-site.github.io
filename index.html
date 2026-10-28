@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-80.grant';})();</script>
+window.__ORDO_BUILD='ordo-81.rmteacher';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -670,9 +670,7 @@ const Store = {
       profile = r.data;
     }
     S.profile = profile;
-    if(profile.college_id){ try{ localStorage.removeItem('ordo-teacher-mode'); }catch(_){} }
     if(!profile.college_id){
-      if(teacherMode()){ renderTeacherWait(); return; }
       const av = await db.rpc('bootstrap_available');
       if(av.error) throw av.error;
       if(av.data === true){ renderFirstRun(); return; }
@@ -818,8 +816,7 @@ const Auth = {
         <button class="btn btn-p" id="loginBtn" type="submit" style="margin-top:6px">Войти</button>
       </form>
       <div class="foot rise" style="animation-delay:.28s">
-        <p class="tiny">Логин и пароль выдаёт староста группы.</p>
-        <p class="tiny" style="margin-top:8px"><a href="#" id="loginTeacher">Я преподаватель</a></p>
+        <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
         <p class="tiny" style="margin-top:16px"><a href="#" id="loginDocs">Документы</a></p>
         <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
       </div>
@@ -829,7 +826,6 @@ const Auth = {
     $('#loginTheme').onclick = Theme.toggle;
     $('#brandAuth').addEventListener('click', easterTap);
     $('#loginDocs').onclick = e => { e.preventDefault(); Docs.open(); };
-    $('#loginTeacher').onclick = e => { e.preventDefault(); Auth.loginTeacher(); };
     const pw = $('#pw');
     $('#pwEye').onclick = e => {
       const show = pw.type === 'password';
@@ -862,94 +858,8 @@ const Auth = {
       }
     });
   },
-  loginTeacher(){
-    root.innerHTML = `
-    <div class="auth">
-      <div class="rise brand" id="brandAuthT" style="animation-delay:.02s;cursor:pointer">${MARK}<span><b>Ordo</b></span></div>
-      <h1 class="rise" style="animation-delay:.08s">Вход<br>для преподавателя</h1>
-      <p class="sub rise" style="animation-delay:.14s">Войдите по почте или зарегистрируйтесь. Роль преподавателя выдаёт администратор.</p>
-      <form id="teacherForm" class="rise" style="animation-delay:.2s" novalidate>
-        <div class="err" id="teacherErr"></div>
-        <div class="field"><label for="tEmail">Почта</label>
-          <input class="inp" id="tEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="например, name@college.ru"></div>
-        <div class="field"><label for="tPw">Пароль</label>
-          <div class="pwbox"><input class="inp" id="tPw" type="password" autocomplete="current-password" placeholder="Пароль">
-          <button type="button" class="eyebtn" id="tPwEye" aria-label="Показать пароль" tabindex="-1">${ICON.eye}</button></div></div>
-        <button class="btn btn-p" id="teacherLoginBtn" type="submit" style="margin-top:6px">Войти</button>
-        <button class="btn btn-q" id="teacherRegBtn" type="button" style="width:100%;margin-top:10px">Зарегистрироваться</button>
-      </form>
-      <div class="tiny" id="teacherNote" style="margin-top:12px"></div>
-      <div class="foot rise" style="animation-delay:.28s">
-        <p class="tiny"><a href="#" id="teacherBack">Я студент</a></p>
-        <p class="tiny" style="margin-top:16px"><a href="#" id="teacherDocs">Документы</a></p>
-        <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
-      </div>
-      <button class="iconbtn themebtn" id="teacherTheme" aria-label="Переключить тему" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px"></button>
-    </div>`;
-    Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
-    $('#teacherTheme').onclick = Theme.toggle;
-    $('#brandAuthT').addEventListener('click', easterTap);
-    $('#teacherDocs').onclick = e => { e.preventDefault(); Docs.open(); };
-    $('#teacherBack').onclick = e => { e.preventDefault(); Auth.login(); };
-    const tpw = $('#tPw');
-    $('#tPwEye').onclick = e => {
-      const show = tpw.type === 'password';
-      tpw.type = show ? 'text' : 'password';
-      e.currentTarget.innerHTML = show ? ICON.eyeOff : ICON.eye;
-    };
-    const setTeacherFlag = () => { try{ localStorage.setItem('ordo-teacher-mode', '1'); }catch(_){} };
-    const showErr = msg => { const el = $('#teacherErr'); el.textContent = msg; el.classList.add('show'); };
-    $('#teacherForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const btn = $('#teacherLoginBtn');
-      if(btn.disabled) return;
-      const email = $('#tEmail').value.trim().toLowerCase();
-      const password = tpw.value;
-      const err = $('#teacherErr');
-      err.classList.remove('show');
-      if(!email || !password){ showErr('Введите почту и пароль.'); return; }
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spin"></span>Входим…';
-      try{
-        const { error } = await db.auth.signInWithPassword({ email, password });
-        if(error) throw error;
-        setTeacherFlag();
-        await Store.boot();
-      }catch(x){
-        showErr(authErrorMessage(x));
-      }finally{
-        btn.disabled = false;
-        btn.textContent = 'Войти';
-      }
-    });
-    $('#teacherRegBtn').onclick = async () => {
-      const btn = $('#teacherRegBtn');
-      if(btn.disabled) return;
-      const email = $('#tEmail').value.trim().toLowerCase();
-      const password = tpw.value;
-      const err = $('#teacherErr');
-      err.classList.remove('show');
-      $('#teacherNote').textContent = '';
-      if(!email.includes('@')){ showErr('Введите почту.'); return; }
-      if(password.length < 8){ showErr('Пароль — минимум 8 символов.'); return; }
-      btn.disabled = true;
-      btn.textContent = 'Создаём…';
-      try{
-        const { data, error } = await db.auth.signUp({ email, password, options:{ data:{ display_name: email.split('@')[0] } } });
-        if(error) throw error;
-        if(data?.session){ setTeacherFlag(); await Store.boot(); return; }
-        $('#teacherNote').textContent = 'Проверьте почту: отправлено письмо для подтверждения. После подтверждения войдите снова.';
-      }catch(x){
-        showErr(authErrorMessage(x));
-      }finally{
-        btn.disabled = false;
-        btn.textContent = 'Зарегистрироваться';
-      }
-    };
-  },
   async logout(){
     try{ localStorage.removeItem('ordo-cache-' + S.user?.id); }catch(_){}
-    try{ localStorage.removeItem('ordo-teacher-mode'); }catch(_){}
     if(S._ch){ try{ await db.removeChannel(S._ch); }catch(_){} S._ch = null; }
     if(S._pr){ try{ await S._pr.untrack(); await db.removeChannel(S._pr); }catch(_){} S._pr = null; }
     if(S.online instanceof Set) S.online.clear();
@@ -2533,19 +2443,6 @@ function paintAuditFeed(el){
 }
 
 /* ---------------- first run / no group ---------------- */
-/* Режим входа преподавателя: флаг ставится при входе/регистрации по почте,
-   читается только для непривязанного профиля (без колледжа) и снимается при выходе. */
-function teacherMode(){
-  try{ return localStorage.getItem('ordo-teacher-mode') === '1'; }catch(_){ return false; }
-}
-function renderTeacherWait(){
-  root.innerHTML = `<div class="auth"><div class="wrap">
-    <div class="eyebrow rise">Преподаватель</div>
-    <h1 class="rise" style="font-size:40px;font-weight:800;letter-spacing:-.02em;margin:10px 0">Аккаунт<br>создан</h1>
-    <p class="body2 rise">Попросите администратора перевести вас в преподаватели, затем войдите снова.</p>
-    <button class="btn btn-q" id="twOut" style="width:100%;margin-top:22px">Выйти</button></div></div>`;
-  $('#twOut').onclick = () => Auth.logout();
-}
 function renderFirstRun(){
   root.innerHTML = `<div class="auth"><div class="wrap">
     <div class="eyebrow rise">Первый запуск</div>
