@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-92.smalldots';})();</script>
+window.__ORDO_BUILD='ordo-93.authflows';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -482,6 +482,7 @@ function authErrorMessage(e){
   for(const k in MAP) if(m.includes(k)) return MAP[k];
   if(/invalid login|invalid.*credentials|invalid.*password/i.test(m)) return 'Неверный логин или пароль.';
   if(/email.*not.*confirmed/i.test(m)) return 'Почта не подтверждена. Проверьте письмо и перейдите по ссылке.';
+  if(/already.*registered|email.*already.*(exists|use)|user.*already.*exists/i.test(m)) return 'Эта почта уже занята другим аккаунтом.';
   if(/user.*not.*found|no.*user/i.test(m)) return 'Такого логина нет. Проверьте написание.';
   if(/permission denied/i.test(m)) return 'Нет прав на это действие.';
   return m || 'Не получилось. Попробуйте ещё раз.';
@@ -672,6 +673,7 @@ const Store = {
       const { data:{ session } } = await db.auth.getSession();
       if(!session){ if(Invite.param()){ Invite.showJoin(Invite.param()); return; } Auth.login(); return; }
       S.user = session.user;
+      await Auth.handleEmailLink();
       try{
         const c = JSON.parse(localStorage.getItem('ordo-cache-' + S.user.id) || 'null');
         if(c && c.group){ Object.assign(S, { profile:c.profile, group:c.group, membership:c.membership, people:c.people, state:c.state, memberRoles:c.memberRoles || {}, stateVer:null, fromCache:true }); if(c.reqN != null) S._reqN = c.reqN; S._cacheSig = sigPS(); S._wasCached = true; render(); }
@@ -844,6 +846,13 @@ const Store = {
   }
 };
 
+/* тип ссылки из письма (recovery / email_change) и исход смены почты — чистые функции, тестируются */
+function authLinkType(hash){
+  const m = /(?:#|&)type=([^&]+)/.exec(hash || '');
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function emailSwitchOutcome(userEmail, newEmail){ return userEmail === newEmail ? 'applied' : 'pending'; }
+
 /* ---------------- auth ---------------- */
 const Auth = {
   login(){
@@ -863,6 +872,7 @@ const Auth = {
       </form>
       <div class="foot rise" style="animation-delay:.28s">
         <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
+        <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a></p>
         <p class="tiny" style="margin-top:16px"><a href="#" id="loginDocs">Документы</a></p>
         <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
       </div>
@@ -872,6 +882,7 @@ const Auth = {
     $('#loginTheme').onclick = Theme.toggle;
     $('#brandAuth').addEventListener('click', easterTap);
     $('#loginDocs').onclick = e => { e.preventDefault(); Docs.open(); };
+    $('#loginForgot').onclick = e => { e.preventDefault(); Auth.forgotSheet(); };
     const pw = $('#pw');
     $('#pwEye').onclick = e => {
       const show = pw.type === 'password';
@@ -937,6 +948,57 @@ const Auth = {
         closeSheet(); toast('Пароль обновлён');
       });
     };
+  },
+  /* «Забыли пароль?»: письмо со ссылкой (только на настоящую почту) */
+  forgotSheet(){
+    sheet(`<h3>Восстановление пароля</h3><p class="body2" style="margin-top:6px">Пришлём письмо со ссылкой — по ней задашь новый пароль.</p>
+      <div class="field" style="margin-top:14px"><label>Почта</label><input class="inp" id="fpEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
+      <div class="err" id="fpErr"></div>
+      <div class="actions"><button class="btn btn-q" id="fpNo">Отмена</button><button class="btn btn-p" id="fpGo">Прислать письмо</button></div>`);
+    $('#fpNo').onclick = closeSheet;
+    $('#fpGo').onclick = async () => {
+      const err = $('#fpErr'); err.classList.remove('show');
+      const email = $('#fpEmail').value.trim().toLowerCase();
+      if(!email.includes('@')){ err.textContent = 'Введи почту.'; err.classList.add('show'); return; }
+      if(email.endsWith('@ordo.invalid')){ err.textContent = 'У тебя пока нет привязанной почты — попроси старосту сбросить пароль.'; err.classList.add('show'); return; }
+      try{
+        const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' });
+        if(error) throw error;
+        closeSheet(); toast('Если такая почта есть в Ordo — письмо уже летит. Проверь и спам.');
+      }catch(e){ err.textContent = authErrorMessage(e); err.classList.add('show'); }
+    };
+  },
+  /* шторка установки нового пароля по ссылке из письма (type=recovery) */
+  recoverySheet(){
+    sheet(`<h3>Новый пароль</h3><p class="body2" style="margin-top:6px">Придумай пароль — минимум 8 символов.</p>
+      <div class="field" style="margin-top:14px"><label>Пароль</label>
+      <div class="pwbox"><input class="inp" id="rpw" type="password" autocomplete="new-password">
+      <button type="button" class="eyebtn" id="rpwEye" aria-label="Показать пароль">${ICON.eye}</button></div></div>
+      <div class="err" id="rpwErr"></div>
+      <div class="actions"><button class="btn btn-q" id="rpwNo">Отмена</button><button class="btn btn-p" id="rpwYes">Сохранить</button></div>`, { lock:true });
+    const inp = $('#rpw');
+    $('#rpwEye').onclick = e => { const s = inp.type==='password'; inp.type = s?'text':'password'; e.currentTarget.innerHTML = s?ICON.eyeOff:ICON.eye; };
+    $('#rpwNo').onclick = closeSheet;
+    $('#rpwYes').onclick = async () => {
+      const v = inp.value;
+      if(v.length < 8){ const m=$('#rpwErr'); m.textContent='Минимум 8 символов.'; m.classList.add('show'); return; }
+      await run(async () => {
+        const { error } = await db.auth.updateUser({ password:v });
+        if(error) throw error;
+        closeSheet(); toast('Пароль обновлён — входи с новым');
+      });
+    };
+  },
+  /* ссылка из письма: восстановление — шторка, подтверждение смены почты — тост */
+  async handleEmailLink(){
+    const t = authLinkType(typeof location !== 'undefined' ? location.hash : '');
+    if(!t) return;
+    try{ history.replaceState(null, '', location.pathname + location.search); }catch(_){}
+    if(t === 'recovery') Auth.recoverySheet();
+    else if(t === 'email_change'){
+      try{ const { data } = await db.auth.getUser(); if(data?.user) S.user = data.user; }catch(_){}
+      toast('Почта подтверждена — теперь входи по ней');
+    }
   },
   /* Блокирующий промпт после входа по выданному паролю: свой пароль обязателен */
   mustChangePrompt(){
@@ -1805,26 +1867,36 @@ const Invite = {
     });
   }
 };
-/* ---------------- вход по почте вместо логина (ordo-79.invites) ---------------- */
-/* Бейдж «!» на вкладке Профиля — только тем, у кого почта синтетическая
-   (@ordo.invalid). После успешной смены бейдж уходит сам: почта уже не синтетическая. */
+/* ---------------- вход по почте вместо логина (ordo-79.invites, ordo-93.authflows) ---------------- */
+/* Точка на вкладке Профиля — только тем, у кого почта синтетическая (@ordo.invalid).
+   Привязка — клиентским updateUser: если проект требует подтверждения, смена вступает
+   в силу только после перехода по ссылке из письма, а старый логин пока работает;
+   если подтверждение выключено — смена мгновенная. После смены точка уходит сама. */
 const EmailSwitch = {
   isSynthetic(){ const em = S.user?.email || ''; return em.endsWith('@ordo.invalid'); },
   openSheet(){
     const w = sheet(`<h3>Вход по почте</h3>
-      <p class="body2" style="margin-top:8px">Введи почту — она станет твоим логином. Пароль останется прежним, а старый логин перестанет работать.</p>
+      <p class="body2" style="margin-top:8px">Введи почту — она станет твоим логином, пароль останется прежним. Если потребуется подтверждение, пришлём письмо со ссылкой — старый логин будет работать, пока не подтвердишь.</p>
       <div class="field" style="margin-top:14px"><label>Почта</label><input class="inp" id="esEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
       <div class="err" id="esErr"></div>
-      <div class="actions"><button class="btn btn-q" id="esNo">Отмена</button><button class="btn btn-p" id="esGo">Сменить на почту</button></div>`);
+      <div class="actions"><button class="btn btn-q" id="esNo">Отмена</button><button class="btn btn-p" id="esGo">Привязать</button></div>`);
     w.querySelector('#esNo').onclick = closeSheet;
     w.querySelector('#esGo').onclick = async () => {
       const err = w.querySelector('#esErr'); err.classList.remove('show');
       const email = w.querySelector('#esEmail').value.trim().toLowerCase();
       if(!email.includes('@') || email.endsWith('@ordo.invalid')){ err.textContent = 'Введи настоящую почту.'; err.classList.add('show'); return; }
+      if(S.user && S.user.email === email){ err.textContent = 'Эта почта уже привязана.'; err.classList.add('show'); return; }
       try{
-        const d = await Authz.callAccounts({ action:'email_switch', email });
-        if(S.user) S.user.email = d.email;
-        closeSheet(); toast('Готово: теперь входи по почте ' + d.email); render();
+        const { error } = await db.auth.updateUser({ email });
+        if(error) throw error;
+        /* перечитываем: сменилась сразу — проект без подтверждения, нет — ждём письма */
+        const { data:{ user } } = await db.auth.getUser();
+        if(user) S.user = user;
+        if(emailSwitchOutcome(user?.email, email) === 'applied'){
+          closeSheet(); toast('Готово: теперь входи по почте ' + email); render();
+        } else {
+          closeSheet(); toast('Письмо отправлено на ' + email + ' — перейди по ссылке, чтобы подтвердить. Старый логин пока работает.');
+        }
       }catch(e){ err.textContent = authErrorMessage(e); err.classList.add('show'); }
     };
   }
