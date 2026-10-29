@@ -1725,13 +1725,23 @@ const Authz = {
   }
 };
 const canInvite = () => isAdmin() || S.profile?.role === 'head' || S.membership?.role === 'leader' || (S.profile?.role === 'teacher' && !!S.teacherGroups?.has(S.group?.id));
+/* ФИО: нормализация регистра и проверка кириллицы (дефис — для двойных фамилий).
+   Нормализация всегда даёт первую букву заглавной, остальное — строчными. */
+function normNamePart(v){
+  const s = String(v || '').trim().toLowerCase();
+  if(!s) return '';
+  return s.split('-').map(p => p ? p[0].toUpperCase() + p.slice(1) : p).join('-');
+}
+function isCyrillicName(v){ return /^[А-ЯЁа-яё]+(-[А-ЯЁа-яё]+)?$/.test(v); }
 /* ---------------- приглашения (ordo-79.invites) ---------------- */
 /* Одноразовые ссылки-приглашения: токен живёт только в ссылке, в базе — лишь
    его SHA-256. Ссылка показывается один раз при создании: потерял — отозви и создай новую. */
 const Invites = {
-  async renderInto(el){
+  async renderInto(el, opts = {}){
+    const teacherOpt = !!opts.teacher && isAdmin();
     el.innerHTML = `<div class="rows">
       <button class="row" id="invNew"><div class="grow"><b>Создать ссылку</b><div class="sub">Одноразовая, действует 7 дней</div></div><span class="chev">›</span></button>
+      ${teacherOpt ? `<label class="row" style="cursor:pointer"><div class="grow"><b>Ссылка для преподавателя</b><div class="sub">Новый аккаунт сразу станет преподавателем и получит эту группу</div></div><input type="checkbox" id="invTeacher" style="width:20px;height:20px;accent-color:var(--accent)"></label>` : ''}
       <div id="invFresh"></div>
       <div id="invList"><div class="row"><p class="body2">Загружаем…</p></div></div>
     </div>`;
@@ -1745,7 +1755,7 @@ const Invites = {
       const rows = d.invites || [];
       list.innerHTML = rows.length ? rows.map(inv => {
         const expired = new Date(inv.expires_at).getTime() < Date.now();
-        return `<div class="row"><div class="grow"><b>Ссылка от ${esc(fmt(inv.created_at))}</b><div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
+        return `<div class="row"><div class="grow"><b>Ссылка от ${esc(fmt(inv.created_at))}</b>${inv.target_role === 'teacher' ? ' <span class="tag">преподаватель</span>' : ''}<div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
         <button class="linkbtn danger" data-invrev="${esc(inv.id)}">Отозвать</button></div>`;
       }).join('') : '<div class="row"><p class="body2">Действующих ссылок нет.</p></div>';
       list.querySelectorAll('[data-invrev]').forEach(b => b.onclick = async () => {
@@ -1766,11 +1776,13 @@ const Invites = {
   async create(el){
     const fresh = el.querySelector('#invFresh'); if(!fresh) return;
     try{
-      const d = await Authz.callAccounts({ action:'invite_create' });
+      const tcb = el.querySelector('#invTeacher');
+      const targetRole = tcb && tcb.checked ? 'teacher' : 'student';
+      const d = await Authz.callAccounts({ action:'invite_create', target_role: targetRole });
       const tok = d.token || (d.link || '').split('invite=')[1] || '';
       fresh.dataset.invId = d.id || '';
       const shortLink = tok ? 'ordo-site.github.io/?invite=' + tok.slice(0,6) + '…' + tok.slice(-4) : d.link;
-      fresh.innerHTML = `<div class="row"><div class="grow"><b>Ссылка готова</b><div class="sub" style="word-break:break-all;color:var(--text)">${esc(shortLink)}</div><div class="sub" style="margin-top:6px">Действует до ${esc(fmt(d.expires_at))} · показывается один раз, скопируй сейчас</div></div></div>
+      fresh.innerHTML = `<div class="row"><div class="grow"><b>Ссылка готова</b>${d.target_role === 'teacher' ? ' <span class="tag">преподаватель</span>' : ''}<div class="sub" style="word-break:break-all;color:var(--text)">${esc(shortLink)}</div><div class="sub" style="margin-top:6px">Действует до ${esc(fmt(d.expires_at))} · показывается один раз, скопируй сейчас</div></div></div>
       <div style="display:flex;gap:8px;margin:10px 16px"><button class="btn btn-q" id="invCopy" style="flex:1">Скопировать ссылку</button></div>`;
       fresh.querySelector('#invCopy').onclick = async () => { try{ await navigator.clipboard.writeText(d.link); toast('Ссылка скопирована'); }catch(_){ toast('Не скопировалось — скопируй вручную'); } };
       await Invites.refresh(el);
@@ -1801,6 +1813,11 @@ const Invite = {
     const dismiss = () => { closeSheet(); Invite.clearParam(); Store.boot(); };
     Invite.info(token).then(info => {
       if(!info.valid) throw new Error(info.error || 'Ссылка недействительна.');
+      if(info.target_role === 'teacher'){
+        body.innerHTML = `<p class="body2">Эта ссылка — для регистрации нового преподавателя. Если у тебя уже есть аккаунт, попроси администратора выдать тебе роль.</p><div class="actions"><button class="btn btn-q" id="invOkT">Понятно</button></div>`;
+        body.querySelector('#invOkT').onclick = dismiss;
+        return;
+      }
       body.innerHTML = `<p class="body2">Вступить в группу «${esc(info.group_name)}»? Ты попадёшь в её очередь.</p>
         <div class="actions"><button class="btn btn-q" id="invNo">Отмена</button><button class="btn btn-p" id="invYes">Вступить</button></div>`;
       body.querySelector('#invNo').onclick = dismiss;
@@ -1823,7 +1840,7 @@ const Invite = {
   showJoin(token){
     root.innerHTML = `<div class="auth"><div class="wrap">
       <div class="eyebrow rise">Приглашение</div>
-      <h1 class="rise" style="font-size:40px;font-weight:800;letter-spacing:-.02em;margin:10px 0">Вступить<br>в группу</h1>
+      <h1 class="rise" id="invTitle" style="font-size:40px;font-weight:800;letter-spacing:-.02em;margin:10px 0">Вступить<br>в группу</h1>
       <div id="invJoinBody" class="rise"><p class="body2">Проверяем ссылку…</p></div></div></div>`;
     const body = $('#invJoinBody');
     const back = () => { Invite.clearParam(); Auth.login(); };
@@ -1833,32 +1850,38 @@ const Invite = {
         $('#invBack').onclick = back;
         return;
       }
-      body.innerHTML = `<p class="body2">Тебя пригласили в группу «${esc(info.group_name)}». Заполни данные — и ты в очереди.</p>
+      const isTeacher = info.target_role === 'teacher';
+      if(isTeacher) $('#invTitle').innerHTML = 'Стать<br>преподавателем';
+      body.innerHTML = `<p class="body2">${isTeacher ? `Вас пригласили преподавателем группы «${esc(info.group_name)}». После регистрации вы будете видеть очередь, журнал и статистику назначенных вам групп.` : `Тебя пригласили в группу «${esc(info.group_name)}». Заполни данные — и ты в очереди.`}</p>
       <form id="invForm" style="margin-top:22px" novalidate>
         <div class="err" id="invErr"></div>
-        <div class="field"><label for="invName">Фамилия и имя</label><input class="inp" id="invName" autocomplete="name" placeholder="Например, Петров Иван"></div>
+        <div class="field"><label for="invLast">Фамилия</label><input class="inp" id="invLast" autocomplete="family-name" autocapitalize="words" placeholder="Например, Петров"></div>
+        <div class="field"><label for="invFirst">Имя</label><input class="inp" id="invFirst" autocomplete="given-name" autocapitalize="words" placeholder="Например, Иван"></div>
         <div class="field"><label for="invEmail">Почта</label><input class="inp" id="invEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
         <div class="field"><label for="invPw">Пароль</label><input class="inp" id="invPw" type="password" autocomplete="new-password" placeholder="Минимум 8 символов"></div>
-        <button class="btn btn-p" id="invGo" type="submit" style="margin-top:6px">Вступить в группу</button>
+        <button class="btn btn-p" id="invGo" type="submit" style="margin-top:6px">${isTeacher ? 'Стать преподавателем' : 'Вступить в группу'}</button>
         <button class="btn btn-q" id="invBack2" type="button" style="width:100%;margin-top:10px">У меня уже есть аккаунт</button>
       </form>`;
       $('#invBack2').onclick = back;
       $('#invForm').addEventListener('submit', async e => {
         e.preventDefault();
         const err = $('#invErr'); err.classList.remove('show');
-        const name = $('#invName').value.trim(), email = $('#invEmail').value.trim().toLowerCase(), pw = $('#invPw').value;
-        if(!name || !email.includes('@') || pw.length < 8){ err.textContent = 'Заполни все поля: имя, почту и пароль от 8 символов.'; err.classList.add('show'); return; }
-        const btn = $('#invGo'); btn.disabled = true; btn.textContent = 'Вступаем…';
+        const last = normNamePart($('#invLast').value), first = normNamePart($('#invFirst').value);
+        $('#invLast').value = last; $('#invFirst').value = first;
+        const name = last + ' ' + first;
+        const email = $('#invEmail').value.trim().toLowerCase(), pw = $('#invPw').value;
+        if(!isCyrillicName(last) || !isCyrillicName(first) || !email.includes('@') || pw.length < 8){ err.textContent = 'Проверь поля: фамилия и имя — только кириллицей, почта и пароль от 8 символов.'; err.classList.add('show'); return; }
+        const btn = $('#invGo'); btn.disabled = true; btn.textContent = isTeacher ? 'Регистрируемся…' : 'Вступаем…';
         try{
           const d = await Authz.callPublic({ action:'invite_accept', token, name, email, password: pw });
           const { error } = await db.auth.signInWithPassword({ email, password: pw });
           if(error) throw error;
           Invite.clearParam();
-          toast(`Добро пожаловать в группу «${d.group_name}»!`);
+          toast(d.target_role === 'teacher' ? `Добро пожаловать! Вы — преподаватель группы «${d.group_name}».` : `Добро пожаловать в группу «${d.group_name}»!`);
           await Store.boot();
         }catch(x){
           err.textContent = authErrorMessage(x); err.classList.add('show');
-          btn.disabled = false; btn.textContent = 'Вступить в группу';
+          btn.disabled = false; btn.textContent = isTeacher ? 'Стать преподавателем' : 'Вступить в группу';
         }
       });
     }).catch(e => {
@@ -2566,7 +2589,7 @@ async function vAdmin(){
       w.querySelector('#dgYes').onclick = () => { if(w.querySelector('#dgIn').value.trim() !== gname){ toast('Название не совпало'); return; } closeSheet(); Authz.deleteGroup(gdelId); };
     });
     $('#mkAcc').onclick = () => Authz.createAccounts();
-    const invBox = $('#invBox'); if(invBox) Invites.renderInto(invBox);
+    const invBox = $('#invBox'); if(invBox) Invites.renderInto(invBox, { teacher: true });
     const pwa = $('#pwAgain'); if(pwa) pwa.onclick = () => Authz.showPasswords(S._lastPw);
     body.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.role.split('|'); Authz.setRole(u, m === '1', b); });
   body.querySelectorAll('[data-teacher]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.teacher.split('|'); Authz.setTeacher(u, m === '1', b); });
