@@ -2543,11 +2543,12 @@ function vProfile(){
     <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.</p>
     <div class="rows" style="margin-top:16px">
       <button class="row" id="abDocs"><div class="grow">Документы</div><span class="chev">›</span></button>
-      <div class="row"><div class="grow">Связь<div class="sub"><a href="mailto:damir.noir@gmail.com">damir.noir@gmail.com</a></div></div></div>
+      <button class="row" id="abTg"><div class="grow">Связь<div class="sub">Telegram · @creepstyle</div></div><span class="chev">›</span></button>
     </div>
     <div class="actions"><button class="btn btn-p" id="abOk">Закрыть</button></div>
     <p class="body2" style="margin-top:14px;text-align:center;color:var(--ter)">Говорят, логотип Ordo любит внимание…</p>`);
     document.getElementById('abDocs').onclick = () => Docs.open();
+    document.getElementById('abTg').onclick = () => window.open(SUPPORT_URL, '_blank');
     document.getElementById('abOk').onclick = closeSheet;
   };
   $('#pfOut').onclick = () => confirmBox('Выйти?', 'Придётся войти заново.', 'Выйти', () => Auth.logout(), true);
