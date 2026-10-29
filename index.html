@@ -1858,19 +1858,28 @@ const Invite = {
         <div class="field"><label for="invLast">Фамилия</label><input class="inp" id="invLast" autocomplete="family-name" autocapitalize="words" placeholder="Например, Петров"></div>
         <div class="field"><label for="invFirst">Имя</label><input class="inp" id="invFirst" autocomplete="given-name" autocapitalize="words" placeholder="Например, Иван"></div>
         <div class="field"><label for="invEmail">Почта</label><input class="inp" id="invEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
-        <div class="field"><label for="invPw">Пароль</label><input class="inp" id="invPw" type="password" autocomplete="new-password" placeholder="Минимум 8 символов"></div>
+        <div class="field"><label for="invPw">Пароль</label><div style="position:relative"><input class="inp" id="invPw" type="password" autocomplete="new-password" placeholder="Минимум 8 символов" style="padding-right:46px"><button type="button" id="invPwEye" aria-label="Показать пароль" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);padding:6px;display:flex;cursor:pointer"><svg id="invEyeOn" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg id="invEyeOff" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg></button></div></div>
+        <div class="field"><label for="invPw2">Подтверждение пароля</label><input class="inp" id="invPw2" type="password" autocomplete="new-password" placeholder="Повтори пароль"></div>
         <button class="btn btn-p" id="invGo" type="submit" style="margin-top:6px">${isTeacher ? 'Стать преподавателем' : 'Вступить в группу'}</button>
         <button class="btn btn-q" id="invBack2" type="button" style="width:100%;margin-top:10px">У меня уже есть аккаунт</button>
       </form>`;
       $('#invBack2').onclick = back;
+      $('#invPwEye').onclick = () => {
+        const pw = $('#invPw'); const show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        $('#invEyeOn').style.display = show ? 'none' : '';
+        $('#invEyeOff').style.display = show ? '' : 'none';
+        $('#invPwEye').setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+      };
       $('#invForm').addEventListener('submit', async e => {
         e.preventDefault();
         const err = $('#invErr'); err.classList.remove('show');
         const last = normNamePart($('#invLast').value), first = normNamePart($('#invFirst').value);
         $('#invLast').value = last; $('#invFirst').value = first;
         const name = last + ' ' + first;
-        const email = $('#invEmail').value.trim().toLowerCase(), pw = $('#invPw').value;
+        const email = $('#invEmail').value.trim().toLowerCase(), pw = $('#invPw').value, pw2 = $('#invPw2').value;
         if(!isCyrillicName(last) || !isCyrillicName(first) || !email.includes('@') || pw.length < 8){ err.textContent = 'Проверь поля: фамилия и имя — только кириллицей, почта и пароль от 8 символов.'; err.classList.add('show'); return; }
+        if(pw !== pw2){ err.textContent = 'Пароли не совпадают.'; err.classList.add('show'); return; }
         const btn = $('#invGo'); btn.disabled = true; btn.textContent = isTeacher ? 'Регистрируемся…' : 'Вступаем…';
         try{
           const d = await Authz.callPublic({ action:'invite_accept', token, name, email, password: pw });
