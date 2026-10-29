@@ -1579,6 +1579,7 @@ const Authz = {
   },
   async setRole(userId, make, btn){
     if(userId === S.user.id) return;
+    if(make && S.profileRoles && S.profileRoles[userId] === 'teacher'){ toast('Преподаватель не может быть старостой.'); return; } /* сервер продублирует */
     if(btn){ btn.disabled = true; btn.style.opacity = '.45'; } /* instant feedback: tap registered */
     try{
       await run(async () => {
