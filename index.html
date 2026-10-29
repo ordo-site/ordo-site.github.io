@@ -1377,13 +1377,11 @@ const People = {
           await Store.loadGroup(); render(); toast('Участник убран');
         }), true);
     }else{
-      /* leader: removal only via request to head — the regal plaque */
-      sheet(`<div style="text-align:center;padding:8px 0 4px">
-        <div style="font-size:44px">👑</div>
-        <h3 style="margin-top:10px">Так решил Император</h3>
+      /* leader: removal only via request to head */
+      sheet(`<h3>Убрать участника?</h3>
         <p class="body2" style="margin-top:10px">Убрать участника может старший староста или преподаватель.<br>Отправьте заявку — её рассмотрят.</p>
         <div class="actions"><button class="btn btn-q" id="rqNo">Понятно</button>
-        <button class="btn btn-p" id="rqYes">Отправить заявку</button></div></div>`);
+        <button class="btn btn-p" id="rqYes">Отправить заявку</button></div>`);
       $('#rqNo').onclick = closeSheet;
       $('#rqYes').onclick = () => { closeSheet(); Requests.composeRemove(id); };
     }
