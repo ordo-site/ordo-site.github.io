@@ -457,8 +457,10 @@ const ICON = {
   queue:'<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2"/><circle cx="3.5" cy="12" r="1.2"/><circle cx="3.5" cy="18" r="1.2"/></svg>',
   group:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.6c2.6.3 4.7 1.9 5.5 4.4"/></svg>',
   inbox:'<svg viewBox="0 0 24 24"><path d="M3 13l2.5-8h13L21 13v6a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19z"/><path d="M3 13h6l1.5 2.5h3L15 13h6"/></svg>',
+  chat:'<svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
   user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.3-7 8-7s7 2.5 8 7"/></svg>'
 };
+const SUPPORT_URL = 'https://t.me/creepstyle?text=' + encodeURIComponent('Привет! Вопрос по Ordo: ');
 const MARK = '<svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><circle class="mk-a" cx="34" cy="50" r="20" fill="none" stroke-width="11"/><circle class="mk-b" cx="76" cy="50" r="13"/></svg>';
 
 /* ---------------- auth error text ---------------- */
@@ -872,7 +874,7 @@ const Auth = {
       </form>
       <div class="foot rise" style="animation-delay:.28s">
         <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
-        <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a></p>
+        <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a><span style="margin:0 10px">·</span><a href="#" id="loginSupport">Поддержка</a></p>
         <p class="tiny" style="margin-top:16px"><a href="#" id="loginDocs">Документы</a></p>
         <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
       </div>
@@ -883,6 +885,7 @@ const Auth = {
     $('#brandAuth').addEventListener('click', easterTap);
     $('#loginDocs').onclick = e => { e.preventDefault(); Docs.open(); };
     $('#loginForgot').onclick = e => { e.preventDefault(); Auth.forgotSheet(); };
+    $('#loginSupport').onclick = e => { e.preventDefault(); window.open(SUPPORT_URL, '_blank'); };
     const pw = $('#pw');
     $('#pwEye').onclick = e => {
       const show = pw.type === 'password';
@@ -1755,7 +1758,9 @@ const Invites = {
       const rows = d.invites || [];
       list.innerHTML = rows.length ? rows.map(inv => {
         const expired = new Date(inv.expires_at).getTime() < Date.now();
-        return `<div class="row"><div class="grow"><b>Ссылка от ${esc(fmt(inv.created_at))}</b>${inv.target_role === 'teacher' ? ' <span class="tag">преподаватель</span>' : ''}<div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
+        const pname = inv.person_id ? ((S.people.find(pp => pp.id === inv.person_id) || {}).name || 'участник') : null;
+        return `<div class="row"><div class="grow"><b>${pname ? 'Ссылка для ' + esc(pname) : 'Ссылка от ' + esc(fmt(inv.created_at))}</b>${inv.target_role === 'teacher' ? ' <span class="tag">преподаватель</span>' : ''}<div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
+        ${inv.token_plain ? `<button class="linkbtn" data-invcopy="${esc(inv.token_plain)}">Копировать</button>` : ''}
         <button class="linkbtn danger" data-invrev="${esc(inv.id)}">Отозвать</button></div>`;
       }).join('') : '<div class="row"><p class="body2">Действующих ссылок нет.</p></div>';
       list.querySelectorAll('[data-invrev]').forEach(b => b.onclick = async () => {
@@ -1770,6 +1775,10 @@ const Invites = {
           await Invites.refresh(el);
         }
         catch(e){ toast(authErrorMessage(e)); }
+      });
+      list.querySelectorAll('[data-invcopy]').forEach(b => b.onclick = async () => {
+        try{ await navigator.clipboard.writeText('https://ordo-site.github.io/?invite=' + b.dataset.invcopy); toast('Ссылка скопирована'); }
+        catch(_){ toast('Не скопировалось — скопируй вручную'); }
       });
     }catch(e){ list.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
   },
@@ -1792,6 +1801,58 @@ const Invites = {
     const w = sheet(`<h3>Приглашения</h3><div id="invSheetBox" style="margin-top:12px"></div><div class="actions"><button class="btn btn-q" id="invClose">Закрыть</button></div>`);
     w.querySelector('#invClose').onclick = closeSheet;
     Invites.renderInto(w.querySelector('#invSheetBox'));
+  }
+};
+/* ---------------- массовое добавление с личными ссылками (ordo-96) ---------------- */
+const BulkAdd = {
+  open(){
+    const rowHtml = () => `<div class="bkRow" style="display:flex;gap:8px;margin-top:10px"><input class="inp bkLast" placeholder="Фамилия" autocomplete="off" autocapitalize="words" style="flex:1;min-width:0"><input class="inp bkFirst" placeholder="Имя" autocomplete="off" autocapitalize="words" style="flex:1;min-width:0"><button type="button" class="linkbtn danger bkDel" aria-label="Убрать строку" style="flex:none;padding:0 4px">×</button></div>`;
+    const w = sheet(`<h3 id="bkTitle">Добавить участников</h3><div id="bkBody">
+      <p class="body2" style="margin-top:6px">По одному человеку в строке. Каждому создастся личная ссылка — она останется в «Приглашениях», разошлёшь когда удобно. Если человек уже есть в составе без аккаунта, ссылка привяжется к нему.</p>
+      <div id="bkRows">${rowHtml()}</div>
+      <button class="linkbtn" id="bkMore" style="margin-top:12px">＋ Ещё строка</button>
+      <div class="err" id="bkErr"></div>
+      <div class="actions"><button class="btn btn-q" id="bkNo">Отмена</button><button class="btn btn-p" id="bkGo">Добавить</button></div></div>`);
+    const rowsBox = w.querySelector('#bkRows');
+    const bindDel = () => rowsBox.querySelectorAll('.bkDel').forEach(b => b.onclick = () => { if(rowsBox.children.length > 1) b.closest('.bkRow').remove(); });
+    bindDel();
+    w.querySelector('#bkMore').onclick = () => { rowsBox.insertAdjacentHTML('beforeend', rowHtml()); bindDel(); };
+    w.querySelector('#bkNo').onclick = closeSheet;
+    w.querySelector('#bkGo').onclick = async () => {
+      const err = w.querySelector('#bkErr'); err.classList.remove('show');
+      const names = []; let bad = false;
+      rowsBox.querySelectorAll('.bkRow').forEach(r => {
+        const last = normNamePart(r.querySelector('.bkLast').value), first = normNamePart(r.querySelector('.bkFirst').value);
+        r.querySelector('.bkLast').value = last; r.querySelector('.bkFirst').value = first;
+        if(!last && !first) return;
+        if(!isCyrillicName(last) || !isCyrillicName(first)) bad = true;
+        else names.push({ last, first });
+      });
+      if(bad){ err.textContent = 'Фамилия и имя — только кириллицей, первая буква заглавная.'; err.classList.add('show'); return; }
+      if(!names.length){ err.textContent = 'Добавь хотя бы одного человека.'; err.classList.add('show'); return; }
+      const btn = w.querySelector('#bkGo'); btn.disabled = true; btn.textContent = 'Добавляем…';
+      try{
+        const d = await Authz.callAccounts({ action:'invite_bulk', names });
+        BulkAdd.results(w, d.results || []);
+      }catch(e){
+        err.textContent = authErrorMessage(e); err.classList.add('show');
+        btn.disabled = false; btn.textContent = 'Добавить';
+      }
+    };
+  },
+  results(w, results){
+    w.querySelector('#bkTitle').textContent = 'Ссылки готовы';
+    w.querySelector('#bkBody').innerHTML = `
+      <p class="body2" style="margin-top:6px">Разошли каждому его ссылку в личку. Они также останутся в «Приглашениях» — можно переоткрыть и скопировать позже.</p>
+      <div class="rows" style="margin-top:12px">${results.map(r => r.link
+        ? `<div class="row"><div class="grow"><b>${esc(r.name)}</b><div class="sub">${r.reused ? 'Ссылка уже была — вот она же' : 'Личная ссылка · действует 7 дней'}</div></div><button class="linkbtn" data-bkcopy="${esc(r.link)}">Копировать</button></div>`
+        : `<div class="row"><div class="grow"><b>${esc(r.name || '—')}</b><div class="sub" style="color:var(--red)">${esc(r.error || 'Не получилось')}</div></div></div>`).join('')}</div>
+      <div class="actions"><button class="btn btn-p" id="bkDone" style="flex:1">Готово</button></div>`;
+    w.querySelectorAll('[data-bkcopy]').forEach(b => b.onclick = async () => {
+      try{ await navigator.clipboard.writeText(b.dataset.bkcopy); toast('Ссылка скопирована'); }
+      catch(_){ toast('Не скопировалось — скопируй вручную'); }
+    });
+    w.querySelector('#bkDone').onclick = async () => { closeSheet(); await Store.loadGroup(); render(); };
   }
 };
 /* приём ссылки ?invite= : залогиненным — подтверждение, незалогиненным — форма */
@@ -1818,8 +1879,10 @@ const Invite = {
         body.querySelector('#invOkT').onclick = dismiss;
         return;
       }
-      body.innerHTML = `<p class="body2">Вступить в группу «${esc(info.group_name)}»? Ты попадёшь в её очередь.</p>
-        <div class="actions"><button class="btn btn-q" id="invNo">Отмена</button><button class="btn btn-p" id="invYes">Вступить</button></div>`;
+      body.innerHTML = (info.person_name
+        ? `<p class="body2">Вступить в группу «${esc(info.group_name)}» как ${esc(info.person_name)}? Твой аккаунт привяжется к этой записи в составе.</p>`
+        : `<p class="body2">Вступить в группу «${esc(info.group_name)}»? Ты попадёшь в её очередь.</p>`)
+        + `<div class="actions"><button class="btn btn-q" id="invNo">Отмена</button><button class="btn btn-p" id="invYes">Вступить</button></div>`;
       body.querySelector('#invNo').onclick = dismiss;
       body.querySelector('#invYes').onclick = async () => {
         try{
@@ -1851,25 +1914,30 @@ const Invite = {
         return;
       }
       const isTeacher = info.target_role === 'teacher';
+      const isPersonal = !!info.person_name;
       if(isTeacher) $('#invTitle').innerHTML = 'Стать<br>преподавателем';
-      body.innerHTML = `<p class="body2">${isTeacher ? `Вас пригласили преподавателем группы «${esc(info.group_name)}». После регистрации вы будете видеть очередь, журнал и статистику назначенных вам групп.` : `Тебя пригласили в группу «${esc(info.group_name)}». Заполни данные — и ты в очереди.`}</p>
+      body.innerHTML = `<p class="body2">${isTeacher ? `Вас пригласили преподавателем группы «${esc(info.group_name)}». После регистрации вы будете видеть очередь, журнал и статистику назначенных вам групп.` : isPersonal ? `Староста добавил тебя в состав группы «${esc(info.group_name)}» как ${esc(info.person_name)}. Имя уже заполнено — укажи почту и придумай пароль.` : `Тебя пригласили в группу «${esc(info.group_name)}». Заполни данные — и ты в очереди.`}</p>
       <form id="invForm" style="margin-top:22px" novalidate>
         <div class="err" id="invErr"></div>
         <div class="field"><label for="invLast">Фамилия</label><input class="inp" id="invLast" autocomplete="family-name" autocapitalize="words" placeholder="Например, Петров"></div>
         <div class="field"><label for="invFirst">Имя</label><input class="inp" id="invFirst" autocomplete="given-name" autocapitalize="words" placeholder="Например, Иван"></div>
         <div class="field"><label for="invEmail">Почта</label><input class="inp" id="invEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
-        <div class="field"><label for="invPw">Пароль</label><div style="position:relative"><input class="inp" id="invPw" type="password" autocomplete="new-password" placeholder="Минимум 8 символов" style="padding-right:46px"><button type="button" id="invPwEye" aria-label="Показать пароль" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);padding:6px;display:flex;cursor:pointer"><svg id="invEyeOn" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg id="invEyeOff" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg></button></div></div>
+        <div class="field"><label for="invPw">Пароль</label><div class="pwbox"><input class="inp" id="invPw" type="password" autocomplete="new-password" placeholder="Минимум 8 символов"><button type="button" class="eyebtn" id="invPwEye" aria-label="Показать пароль" tabindex="-1">${ICON.eye}</button></div></div>
         <div class="field"><label for="invPw2">Подтверждение пароля</label><input class="inp" id="invPw2" type="password" autocomplete="new-password" placeholder="Повтори пароль"></div>
         <button class="btn btn-p" id="invGo" type="submit" style="margin-top:6px">${isTeacher ? 'Стать преподавателем' : 'Вступить в группу'}</button>
         <button class="btn btn-q" id="invBack2" type="button" style="width:100%;margin-top:10px">У меня уже есть аккаунт</button>
       </form>`;
       $('#invBack2').onclick = back;
-      $('#invPwEye').onclick = () => {
+      if(isPersonal){
+        const pp = info.person_name.split(' ');
+        $('#invLast').value = pp[0] || '';
+        $('#invFirst').value = pp.slice(1).join(' ') || '';
+        $('#invLast').disabled = true; $('#invFirst').disabled = true;
+      }
+      $('#invPwEye').onclick = e => {
         const pw = $('#invPw'); const show = pw.type === 'password';
         pw.type = show ? 'text' : 'password';
-        $('#invEyeOn').style.display = show ? 'none' : '';
-        $('#invEyeOff').style.display = show ? '' : 'none';
-        $('#invPwEye').setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+        e.currentTarget.innerHTML = show ? ICON.eyeOff : ICON.eye;
       };
       $('#invForm').addEventListener('submit', async e => {
         e.preventDefault();
@@ -1878,7 +1946,7 @@ const Invite = {
         $('#invLast').value = last; $('#invFirst').value = first;
         const name = last + ' ' + first;
         const email = $('#invEmail').value.trim().toLowerCase(), pw = $('#invPw').value, pw2 = $('#invPw2').value;
-        if(!isCyrillicName(last) || !isCyrillicName(first) || !email.includes('@') || pw.length < 8){ err.textContent = 'Проверь поля: фамилия и имя — только кириллицей, почта и пароль от 8 символов.'; err.classList.add('show'); return; }
+        if((!isPersonal && (!isCyrillicName(last) || !isCyrillicName(first))) || !email.includes('@') || pw.length < 8){ err.textContent = 'Проверь поля: фамилия и имя — только кириллицей, почта и пароль от 8 символов.'; err.classList.add('show'); return; }
         if(pw !== pw2){ err.textContent = 'Пароли не совпадают.'; err.classList.add('show'); return; }
         const btn = $('#invGo'); btn.disabled = true; btn.textContent = isTeacher ? 'Регистрируемся…' : 'Вступаем…';
         try{
@@ -2048,7 +2116,7 @@ function shell(content, active){
   const _vin = _skipVinOnce ? '' : ' vin'; _skipVinOnce = false;
   const tabs = [['home','Главная',ICON.home],['queue','Очередь',ICON.queue]];
   if(isLeader()) tabs.push(['people','Группа',ICON.group]);
-  if(isLeader()) tabs.push(['requests','Заявки',ICON.inbox]);
+  if(isLeader()) tabs.push(['requests','Обращения',ICON.chat]);
   tabs.push(['profile','Профиль',ICON.user]);
   const short = (S.profile?.display_name || S.user?.email || '').split('@')[0];
   root.innerHTML = `
@@ -2334,6 +2402,7 @@ function vPeople(){
     }).join('');
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Группа</h1>
     ${canInviteP ? '<button class="linkbtn" id="invP">Приглашения</button>' : ''}
+    ${canInviteP ? '<button class="linkbtn" id="bulkP">Добавить участников</button>' : ''}
     ${isStaff() ? '<button class="linkbtn" id="addP">＋ Добавить</button>' : ''}</div>
     <p class="body2">${S.people.length} ${peopleWord(S.people.length)}</p>
     <div class="field" style="margin-top:14px"><input class="inp" id="pSearch" placeholder="Найти человека" autocomplete="off"></div>
@@ -2341,6 +2410,7 @@ function vPeople(){
     ${isStaff() ? '<button class="linkbtn" id="impP" style="margin-top:14px">Импорт из Excel / CSV</button>' : ''}`, 'people');
   const ap = $('#addP'); if(ap) ap.onclick = () => People.add();
   const ivb = $('#invP'); if(ivb) ivb.onclick = () => Invites.openSheet();
+  const bpb = $('#bulkP'); if(bpb) bpb.onclick = () => BulkAdd.open();
   const ip = $('#impP'); if(ip) ip.onclick = () => importPeople();
   $('#pSearch').addEventListener('input', e => { S.peopleFilter = e.target.value; S.peopleFilterGid = S.group?.id; $('#pList').innerHTML = list(e.target.value); bindPeopleRows(); });
   bindPeopleRows();
@@ -2361,10 +2431,14 @@ async function vRequests(){
   let list = document.getElementById('rqList');
   if(!list){
     /* first entry: build chrome; re-renders only refill the list (no scroll jump) */
-    shell(`<h1 class="stitle" style="margin-top:4px">Заявки</h1><div id="rqBody">` +
-      (staff ? `<div class="eyebrow" style="margin:20px 0 4px">Ожидают решения</div>`
+    shell(`<h1 class="stitle" style="margin-top:4px">Обращения</h1>
+      <div class="rows" style="margin-top:16px"><div class="row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="grow"><b>Обратная связь</b><div class="sub">Не получается войти, что-то сломалось или есть идея — напишите мне в Telegram, отвечаю лично.</div></div><button class="btn btn-p" id="fbTg" style="min-height:44px">Написать в Telegram</button></div></div>
+      <div id="rqBody">` +
+      (staff ? `<div class="eyebrow" style="margin:20px 0 4px">Заявки · ожидают решения</div>`
              : `<div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div>`) +
       `<div id="rqList"></div></div>`, 'requests');
+    const fbBtn = document.getElementById('fbTg');
+    if(fbBtn) fbBtn.onclick = () => window.open(SUPPORT_URL, '_blank');
     list = document.getElementById('rqList');
   }
   const paint = h => { list.innerHTML = `<div class="vin">${h}</div>`; };
@@ -2425,6 +2499,7 @@ function vProfile(){
     EmailSwitch.isSynthetic() ? `<button class="row" id="pfEmail"><div class="grow">Привязать почту <span class="bdg-inrow"></span></div><span class="chev">›</span></button>` : '',
     isLeader() ? `<button class="row" id="pfExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
+    `<button class="row" id="pfSupport"><div class="grow">Обратная связь<div class="sub">Поддержка в Telegram — отвечаю лично</div></div><span class="chev">›</span></button>`,
     `<button class="row" id="pfAbout"><div class="grow">О проекте</div><span class="chev">›</span></button>`,
     `<button class="row" id="pfOut"><div class="grow" style="color:var(--red)">Выйти</div></button>`
   ].join('');
@@ -2462,6 +2537,7 @@ function vProfile(){
   }).join('');
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
+  const sp = $('#pfSupport'); if(sp) sp.onclick = () => window.open(SUPPORT_URL, '_blank');
   $('#pfAbout').onclick = () => {
     sheet(`<h3>О проекте</h3>
     <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.</p>
