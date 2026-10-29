@@ -2500,7 +2500,6 @@ function vProfile(){
     EmailSwitch.isSynthetic() ? `<button class="row" id="pfEmail"><div class="grow">Привязать почту <span class="bdg-inrow"></span></div><span class="chev">›</span></button>` : '',
     isLeader() ? `<button class="row" id="pfExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
-    `<button class="row" id="pfSupport"><div class="grow">Обратная связь<div class="sub">Поддержка в Telegram — отвечаю лично</div></div><span class="chev">›</span></button>`,
     `<button class="row" id="pfAbout"><div class="grow">О проекте</div><span class="chev">›</span></button>`,
     `<button class="row" id="pfOut"><div class="grow" style="color:var(--red)">Выйти</div></button>`
   ].join('');
@@ -2538,7 +2537,6 @@ function vProfile(){
   }).join('');
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
-  const sp = $('#pfSupport'); if(sp) sp.onclick = () => window.open(SUPPORT_URL, '_blank');
   $('#pfAbout').onclick = () => {
     sheet(`<h3>О проекте</h3>
     <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.</p>
