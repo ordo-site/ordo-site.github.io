@@ -2577,9 +2577,10 @@ async function vAdmin(){
   const body = $('#adBody');
   try{
     const gid = S.group.id;
-    const [members, vers] = await Promise.all([
+    const [members, vers, tprofs] = await Promise.all([
       db.from('group_members').select('user_id,role').eq('group_id', gid),
-      db.from('group_state_versions').select('id,saved_at').eq('group_id', gid).order('id', { ascending:false }).limit(10)
+      db.from('group_state_versions').select('id,saved_at').eq('group_id', gid).order('id', { ascending:false }).limit(10),
+      isAdmin() ? db.from('profiles').select('id,display_name').eq('role', 'teacher').eq('college_id', S.profile.college_id) : Promise.resolve({ data: [] })
     ]);
     if(members.error) throw members.error;
     const mrole = new Map((members.data || []).map(m => [m.user_id, m.role]));
@@ -2617,6 +2618,7 @@ async function vAdmin(){
         <button class="linkbtn" data-rst="${esc(p.id)}">Пароль</button>` : '';
         return `<div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><div class="grow"><b>${esc(p.name)}</b>${p.user_id === S.user.id ? ' <span class="tag">вы</span>' : ''}<div class="sub">${isL ? 'староста' : 'студент'}</div></div>${btns ? `<div style="display:flex;flex-wrap:wrap;gap:0 8px;margin-left:-4px">${btns}</div>` : ''}</div>`;
       }).join('')}
+      ${isAdmin() ? (tprofs.data || []).filter(t => !S.people.some(p => p.user_id === t.id)).map(t => `<div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><div class="grow"><b>${esc(t.display_name)}</b><div class="sub">преподаватель</div></div><div style="display:flex;flex-wrap:wrap;gap:0 8px;margin-left:-4px"><button class="linkbtn" data-tgroups="${esc(t.id)}">Группы</button><button class="linkbtn" data-teacher="${esc(t.id)}|0">Снять преподавателя</button></div></div>`).join('') : ''}
     </div>`) +
     (showInvites ? sec('invites', 'Приглашения', `<div id="invBox"></div>`) : '') +
     sec('queue', 'Состояние очереди', `
