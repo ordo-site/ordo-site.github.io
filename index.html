@@ -1795,6 +1795,7 @@ const Invites = {
       <div style="display:flex;gap:8px;margin:10px 16px"><button class="btn btn-q" id="invCopy" style="flex:1">Скопировать ссылку</button></div>`;
       fresh.querySelector('#invCopy').onclick = async () => { try{ await navigator.clipboard.writeText(d.link); toast('Ссылка скопирована'); }catch(_){ toast('Не скопировалось — скопируй вручную'); } };
       await Invites.refresh(el);
+      if(tcb) tcb.checked = false; /* галочка — только про следующую ссылку: сброс, чтобы не читалась как тип готовой */
     }catch(e){ toast(authErrorMessage(e)); }
   },
   openSheet(){
