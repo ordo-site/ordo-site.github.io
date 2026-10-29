@@ -2375,13 +2375,11 @@ function vPeople(){
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Группа</h1></div>
     ${(canInviteP || isStaff()) ? `<div style="display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center">
     ${canInviteP ? '<button class="linkbtn" id="invP" style="white-space:nowrap;padding:2px 0">Приглашения</button>' : ''}
-    ${canInviteP ? '<button class="linkbtn" id="bulkP" style="white-space:nowrap;padding:2px 0">Добавить участников</button>' : ''}
-    ${isStaff() ? '<button class="linkbtn" id="addP" style="white-space:nowrap;padding:2px 0">＋ Добавить</button>' : ''}</div>` : ''}
+    ${canInviteP ? '<button class="linkbtn" id="bulkP" style="white-space:nowrap;padding:2px 0">Добавить участников</button>' : ''}</div>` : ''}
     <p class="body2" style="margin-top:10px">${S.people.length} ${peopleWord(S.people.length)}</p>
     <div class="field" style="margin-top:14px"><input class="inp" id="pSearch" placeholder="Найти человека" autocomplete="off"></div>
     <div class="rows" id="pList">${list()}</div>
     ${isStaff() ? '<button class="linkbtn" id="impP" style="margin-top:14px">Импорт из Excel / CSV</button>' : ''}`, 'people');
-  const ap = $('#addP'); if(ap) ap.onclick = () => People.add();
   const ivb = $('#invP'); if(ivb) ivb.onclick = () => Invites.openSheet();
   const bpb = $('#bulkP'); if(bpb) bpb.onclick = () => BulkAdd.open();
   const ip = $('#impP'); if(ip) ip.onclick = () => importPeople();
