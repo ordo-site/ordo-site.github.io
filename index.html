@@ -1448,42 +1448,13 @@ const Requests = {
     }, true);
   },
   compose(){
-    sheet(`<h3>Новая заявка</h3>
-      <p class="body2" style="margin-top:6px">Решение принимает старший староста.</p>
-      <div class="actions" style="flex-direction:column">
-        <button class="btn btn-q" id="nrRemove" style="width:100%">Убрать человека из группы</button>
-        <button class="btn btn-q" id="nrAdd" style="width:100%">Добавить человека в группу</button>
-        <button class="btn btn-q" id="nrNo" style="width:100%">Отмена</button></div>`);
-    $('#nrNo').onclick = closeSheet;
-    $('#nrRemove').onclick = () => {
-      closeSheet();
-      const opts = S.people.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
-      const w = sheet(`<h3>Кого убрать?</h3>
-        <div class="field" style="margin-top:14px"><label>Участник</label><select class="inp" id="rrWho">${opts}</select></div>
-        <div class="actions"><button class="btn btn-q" id="rrNo">Отмена</button><button class="btn btn-p" id="rrYes">Дальше</button></div>`);
-      w.querySelector('#rrNo').onclick = closeSheet;
-      w.querySelector('#rrYes').onclick = () => { const id = w.querySelector('#rrWho').value; closeSheet(); Requests.composeRemove(id); };
-    };
-    $('#nrAdd').onclick = () => {
-      closeSheet();
-      const w = sheet(`<h3>Кого добавить?</h3>
-        <div class="field" style="margin-top:14px"><label>Фамилия</label><input class="inp" id="raLast" autocomplete="off" placeholder="Иванов"></div>
-        <div class="field"><label>Имя</label><input class="inp" id="raFirst" autocomplete="off" placeholder="Иван"></div>
-        <div class="actions"><button class="btn btn-q" id="raNo">Отмена</button><button class="btn btn-p" id="raYes">Дальше</button></div>`);
-      w.querySelector('#raNo').onclick = closeSheet;
-      w.querySelector('#raYes').onclick = () => {
-        const nm = [normName(w.querySelector('#raLast').value), normName(w.querySelector('#raFirst').value)].filter(Boolean).join(' ');
-        if(!nm){ toast('Введите фамилию'); return; }
-        closeSheet();
-        promptBox('Причина', 'Почему добавить: ' + nm + '?', 'Отправить', reason => {
-          run(async () => {
-            const r = await db.rpc('request_person_add', { p_group_id:S.group.id, p_name:nm, p_reason:reason });
-            if(r.error) throw r.error;
-            render(); toast('Заявка отправлена');
-          });
-        }, true);
-      };
-    };
+    const opts = S.people.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+    const w = sheet(`<h3>Кого убрать?</h3>
+      <p class="body2" style="margin-top:6px">Заявку рассмотрит старший староста.</p>
+      <div class="field" style="margin-top:14px"><label>Участник</label><select class="inp" id="rrWho">${opts}</select></div>
+      <div class="actions"><button class="btn btn-q" id="rrNo">Отмена</button><button class="btn btn-p" id="rrYes">Дальше</button></div>`);
+    w.querySelector('#rrNo').onclick = closeSheet;
+    w.querySelector('#rrYes').onclick = () => { const id = w.querySelector('#rrWho').value; closeSheet(); Requests.composeRemove(id); };
   }
 };
 
@@ -2401,10 +2372,11 @@ function vPeople(){
         <div class="grow"><b>${esc(p.name)}</b>${tags.length ? `<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">${tags.join('')}</div>` : ''}</div></div>
         <div style="display:flex;flex-wrap:wrap;gap:0 8px;margin-left:54px">${pbtns}</div></div>`;
     }).join('');
-  shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Группа</h1>
-    ${canInviteP ? '<button class="linkbtn" id="invP">Приглашения</button>' : ''}
-    ${canInviteP ? '<button class="linkbtn" id="bulkP">Добавить участников</button>' : ''}
-    ${isStaff() ? '<button class="linkbtn" id="addP">＋ Добавить</button>' : ''}</div>
+  shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Группа</h1></div>
+    ${(canInviteP || isStaff()) ? `<div style="display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center">
+    ${canInviteP ? '<button class="linkbtn" id="invP" style="white-space:nowrap">Приглашения</button>' : ''}
+    ${canInviteP ? '<button class="linkbtn" id="bulkP" style="white-space:nowrap">Добавить участников</button>' : ''}
+    ${isStaff() ? '<button class="linkbtn" id="addP" style="white-space:nowrap">＋ Добавить</button>' : ''}</div>` : ''}
     <p class="body2">${S.people.length} ${peopleWord(S.people.length)}</p>
     <div class="field" style="margin-top:14px"><input class="inp" id="pSearch" placeholder="Найти человека" autocomplete="off"></div>
     <div class="rows" id="pList">${list()}</div>
