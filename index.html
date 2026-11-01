@@ -2087,7 +2087,7 @@ function shell(content, active){
   const _vin = _skipVinOnce ? '' : ' vin'; _skipVinOnce = false;
   const tabs = [['home','Главная',ICON.home],['queue','Очередь',ICON.queue]];
   if(isLeader()) tabs.push(['people','Группа',ICON.group]);
-  if(isLeader()) tabs.push(['requests','Обращения',ICON.chat]);
+  tabs.push(['requests','Обращения',ICON.chat]);
   tabs.push(['profile','Профиль',ICON.user]);
   const short = (S.profile?.display_name || S.user?.email || '').split('@')[0];
   root.innerHTML = `
@@ -2403,13 +2403,13 @@ async function vRequests(){
     /* first entry: build chrome; re-renders only refill the list (no scroll jump) */
     shell(`<h1 class="stitle" style="margin-top:4px">Обращения</h1>
       <div class="rows" style="margin-top:16px"><div class="row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="grow"><b>Обратная связь</b><div class="sub">Не получается войти, что-то сломалось или есть идея — напишите на почту.</div></div><button class="btn btn-p" id="fbMail" style="min-height:44px">Написать на почту</button></div></div>
-      <div id="rqBody">` +
-      (staff ? `<div class="eyebrow" style="margin:20px 0 4px">Заявки · ожидают решения</div>`
-             : `<div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div>`) +
-      `<div id="rqList"></div></div>`, 'requests');
+      ` +
+      (staff ? `<div id="rqBody"><div class="eyebrow" style="margin:20px 0 4px">Заявки · ожидают решения</div><div id="rqList"></div></div>`
+             : isLeader() ? `<div id="rqBody"><div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div><div id="rqList"></div></div>` : ''), 'requests');
     const fbBtn = document.getElementById('fbMail');
     if(fbBtn) fbBtn.onclick = () => { location.href = SUPPORT_URL; };
     list = document.getElementById('rqList');
+    if(!list) return; /* студент: только обратная связь, секции заявок нет */
   }
   const paint = h => { list.innerHTML = `<div class="vin">${h}</div>`; };
   try{
@@ -2780,7 +2780,7 @@ function render(){
   const v = S.view;
   if(v === 'queue') vQueue();
   else if(v === 'people' && isLeader()) vPeople();
-  else if(v === 'requests' && isLeader()) vRequests();
+  else if(v === 'requests') vRequests();
   else if(v === 'profile') vProfile();
   else if(v === 'admin' && isStaff()) vAdmin();
   else { S.view = 'home'; vHome(); }
