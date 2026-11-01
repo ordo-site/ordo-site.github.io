@@ -2454,6 +2454,19 @@ async function vRequests(){
 const DONORS = [
   { name: 'Роман Щербаков', sub: '2СА25Н · 15.10.2026', amount: '100 ₽' },
 ];
+const Donors = {
+  open(){
+    const w = sheet(`<h3>Донатеры</h3>
+    <p class="body2" style="margin-top:8px">Спасибо каждому, кто поддержал Ordo.</p>
+    <div class="team2" style="margin-top:14px">${DONORS.map(d => {
+      const ini = d.name.split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
+      return `<div class="tcard"><div class="avatar">${esc(ini)}</div><div><div class="tname">${esc(d.name)}</div><div class="trole">${esc(d.sub)}</div><div><span class="dsum">${esc(d.amount)}</span></div></div></div>`;
+    }).join('')}</div>
+    <div class="actions" style="margin-top:16px"><button class="btn btn-p" id="dnGive">☕ Автору на кофе</button><button class="btn" id="dnOk">Закрыть</button></div>`);
+    w.querySelector('#dnGive').onclick = () => window.open('https://pay.cloudtips.ru/p/a2d66131', '_blank');
+    w.querySelector('#dnOk').onclick = closeSheet;
+  }
+};
 function vProfile(){
   const me = S.people.find(p => p.user_id === S.user?.id);
   const log = S.state.log || [];
@@ -2493,18 +2506,12 @@ function vProfile(){
         <span class="tiny">${esc(fmt(en.at))}</span>
         ${del}</div>`;
       }).join('')
-        : '<p class="body2">Пока пусто.</p>'}</div>    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Действия</div><div class="rows">${rows}</div></div><div class="sec"><div class="eyebrow" style="margin-bottom:10px">Команда</div><div class="team2"><div class="tcard"><img class="tava" alt="Алексей Дергалёв" src="img/team-alex.jpg"><div><div class="tname">Алексей Дергалёв</div><div class="trole">Глава старост · 3СА24Н</div></div></div><div class="tcard"><img class="tava" alt="Дамир Таджиев" src="img/team-damir.jpg"><div><div class="tname"><span aria-hidden="true">𝔇𝔞𝔪𝔦𝔯</span><span class="sr-only">Дамир Таджиев</span><svg class="crown" viewBox="0 0 100 60" aria-hidden="true"><path d="M6 12l22 20 22-26 22 26 22-20-8 42H14z" fill="currentColor"/></svg></div><div class="trole">THE CEO · ORDO</div><div class="tbtns"><a class="pill" href="mailto:datadzhiev@yandex.ru" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5.6A2.6 2.6 0 0 1 4.6 3h14.8A2.6 2.6 0 0 1 22 5.6v.5L12 12.3 2 6.1zM2 8.2l10 6.2 10-6.2v10.2a2.6 2.6 0 0 1-2.6 2.6H4.6A2.6 2.6 0 0 1 2 18.4z"/></svg>datadzhiev@yandex.ru</a><a class="pill" href="https://pay.cloudtips.ru/p/a2d66131" target="_blank" rel="noopener">☕ Автору на кофе</a></div></div></div></div></div>
+        : '<p class="body2">Пока пусто.</p>'}</div>    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Действия</div><div class="rows">${rows}</div></div><div class="sec"><div class="eyebrow" style="margin-bottom:10px">Команда</div><div class="team2"><div class="tcard"><img class="tava" alt="Алексей Дергалёв" src="img/team-alex.jpg"><div><div class="tname">Алексей Дергалёв</div><div class="trole">Глава старост · 3СА24Н</div></div></div><div class="tcard"><img class="tava" alt="Дамир Таджиев" src="img/team-damir.jpg"><div><div class="tname"><span aria-hidden="true">𝔇𝔞𝔪𝔦𝔯</span><span class="sr-only">Дамир Таджиев</span><svg class="crown" viewBox="0 0 100 60" aria-hidden="true"><path d="M6 12l22 20 22-26 22 26 22-20-8 42H14z" fill="currentColor"/></svg></div><div class="trole">THE CEO · ORDO</div></div></div></div></div>
 
-    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Донатеры</div><div class="team2" id="donorList"></div></div>
 
     <p class="tiny" style="margin-top:30px;text-align:center">© 2026 Damir Tadzhiev · Ordo</p>`, 'profile');
   $('#pfPw').onclick = () => Auth.changePassword();
   const pe = $('#pfEmail'); if(pe) pe.onclick = () => EmailSwitch.openSheet();
-  const dl = document.getElementById('donorList');
-  if(dl) dl.innerHTML = DONORS.map(d => {
-    const ini = d.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-    return `<div class="tcard"><div class="avatar">${esc(ini)}</div><div><div class="tname">${esc(d.name)}</div><div class="trole">${esc(d.sub)}</div><div><span class="dsum">${esc(d.amount)}</span></div></div></div>`;
-  }).join('');
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
   $('#pfAbout').onclick = () => {
@@ -2512,11 +2519,13 @@ function vProfile(){
     <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.</p>
     <div class="rows" style="margin-top:16px">
       <button class="row" id="abDocs"><div class="grow">Документы</div><span class="chev">›</span></button>
+      <button class="row" id="abDonors"><div class="grow">Донатеры<div class="sub">Кто поддержал Ordo и как поддержать</div></div><span class="chev">›</span></button>
       <button class="row" id="abMail"><div class="grow">Связь<div class="sub">Почта · datadzhiev@yandex.ru</div></div><span class="chev">›</span></button>
     </div>
     <div class="actions"><button class="btn btn-p" id="abOk">Закрыть</button></div>
     <p class="body2" style="margin-top:14px;text-align:center;color:var(--ter)">Говорят, логотип Ordo любит внимание…</p>`);
     document.getElementById('abDocs').onclick = () => Docs.open();
+    document.getElementById('abDonors').onclick = () => Donors.open();
     document.getElementById('abMail').onclick = () => { location.href = SUPPORT_URL; };
     document.getElementById('abOk').onclick = closeSheet;
   };
