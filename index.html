@@ -265,6 +265,7 @@ button.row:active{background:var(--fill)}
 .tab .bdg{position:absolute;top:2px;right:calc(50% - 20px);min-width:19px;height:19px;border-radius:10px;background:var(--red);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px}
 .tab .bdg-dot{position:absolute;top:4px;right:calc(50% - 17px);width:8px;height:8px;border-radius:50%;background:var(--red)}
 .bdg-inrow{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:8px;vertical-align:2px}
+.bdg-inrow.ok{background:var(--green)}
 
 /* ---------- misc ---------- */
 .notice{border-radius:16px;padding:14px 16px;font-size:15px;background:var(--fill);color:var(--sec);margin-top:14px}
@@ -1939,12 +1940,49 @@ const Invite = {
   }
 };
 /* ---------------- вход по почте вместо логина (ordo-79.invites, ordo-93.authflows) ---------------- */
-/* Точка на вкладке Профиля — только тем, у кого почта синтетическая (@ordo.invalid).
+/* Точка на вкладке Профиля — всем, чья почта требует действия (EmailSwitch.needsAction):
+   синтетическая, неподтверждённая или ожидающая подтверждения по письму.
    Привязка — клиентским updateUser: если проект требует подтверждения, смена вступает
    в силу только после перехода по ссылке из письма, а старый логин пока работает;
-   если подтверждение выключено — смена мгновенная. После смены точка уходит сама. */
+   если подтверждение выключено — смена мгновенная. Статус виден строкой в Профиле. */
 const EmailSwitch = {
   isSynthetic(){ const em = S.user?.email || ''; return em.endsWith('@ordo.invalid'); },
+  pendingEmail(){ return S.user?.new_email || ''; },
+  /* Статус почты: pending — письмо со ссылкой ушло, ждём перехода; synthetic — почты нет вовсе;
+     unconfirmed — почта есть, но не подтверждена; confirmed — всё в порядке. */
+  status(){
+    if(this.pendingEmail()) return 'pending';
+    if(this.isSynthetic()) return 'synthetic';
+    if(!S.user?.email_confirmed_at) return 'unconfirmed';
+    return 'confirmed';
+  },
+  needsAction(){ return this.status() !== 'confirmed'; },
+  profileRow(){
+    const st = this.status();
+    if(st === 'synthetic') return `<button class="row" id="pfEmail"><div class="grow">Привязать почту <span class="bdg-inrow"></span></div><span class="chev">›</span></button>`;
+    if(st === 'pending') return `<button class="row" id="pfEmail"><div class="grow">Подтвердить почту <span class="bdg-inrow"></span><div class="sub">Письмо со ссылкой отправлено на ${esc(this.pendingEmail())}</div></div><span class="chev">›</span></button>`;
+    if(st === 'unconfirmed') return `<button class="row" id="pfEmail"><div class="grow">Подтвердить почту <span class="bdg-inrow"></span><div class="sub">${esc(S.user?.email || '')} — почта ещё не подтверждена</div></div><span class="chev">›</span></button>`;
+    return `<div class="row"><div class="grow">Почта подтверждена<div class="sub">${esc(S.user?.email || '')}</div></div><span class="bdg-inrow ok"></span></div>`;
+  },
+  openConfirmSheet(){
+    const st = this.status();
+    const addr = st === 'pending' ? this.pendingEmail() : (S.user?.email || '');
+    const w = sheet(`<h3>Подтверждение почты</h3>
+      <p class="body2" style="margin-top:8px">${st === 'pending'
+        ? `Мы отправили письмо со ссылкой на ${esc(addr)}. Перейди по ссылке, чтобы завершить привязку. Пока почта не подтверждена, вход по ней недоступен, а текущий способ входа продолжает работать.`
+        : `Почта ${esc(addr)} ещё не подтверждена. Перейди по ссылке из письма, которое мы отправляли при регистрации, — или отправь письмо ещё раз.`}</p>
+      <div class="err" id="ecErr"></div>
+      <div class="actions"><button class="btn btn-q" id="ecNo">Закрыть</button><button class="btn btn-p" id="ecGo">Отправить письмо ещё раз</button></div>`);
+    w.querySelector('#ecNo').onclick = closeSheet;
+    w.querySelector('#ecGo').onclick = async () => {
+      const err = w.querySelector('#ecErr'); err.classList.remove('show');
+      try{
+        if(st === 'pending'){ const { error } = await db.auth.updateUser({ email: addr }); if(error) throw error; }
+        else { const { error } = await db.auth.resend({ type: 'signup', email: addr }); if(error) throw error; }
+        closeSheet(); toast('Письмо отправлено ещё раз на ' + addr);
+      }catch(e){ err.textContent = authErrorMessage(e); err.classList.add('show'); }
+    };
+  },
   openSheet(){
     const w = sheet(`<h3>Вход по почте</h3>
       <p class="body2" style="margin-top:8px">Введи почту — она станет твоим логином, пароль останется прежним. Если потребуется подтверждение, пришлём письмо со ссылкой — старый логин будет работать, пока не подтвердишь.</p>
@@ -1966,7 +2004,7 @@ const EmailSwitch = {
         if(emailSwitchOutcome(user?.email, email) === 'applied'){
           closeSheet(); toast('Готово: теперь входи по почте ' + email); render();
         } else {
-          closeSheet(); toast('Письмо отправлено на ' + email + ' — перейди по ссылке, чтобы подтвердить. Старый логин пока работает.');
+          closeSheet(); toast('Письмо отправлено на ' + email + ' — перейди по ссылке, чтобы подтвердить. Старый логин пока работает.'); render();
         }
       }catch(e){ err.textContent = authErrorMessage(e); err.classList.add('show'); }
     };
@@ -2104,7 +2142,7 @@ function shell(content, active){
   </div></div>
   <main class="screen"><div class="wrap${_vin}">${content}</div></main>
   <nav class="tabbar" aria-label="Навигация"><div class="tabbar-in">
-    ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}">${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}${k==='profile' && EmailSwitch.isSynthetic() ? `<span class="bdg-dot"></span>` : ''}</button>`).join('')}
+    ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}">${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}${k==='profile' && EmailSwitch.needsAction() ? `<span class="bdg-dot"></span>` : ''}</button>`).join('')}
   </div></nav>`;
   Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
   Easter.apply(Easter.mode);
@@ -2487,7 +2525,7 @@ function vProfile(){
   const recent = log.slice(-10).reverse();
   const rows = [
     `<button class="row" id="pfPw"><div class="grow">Сменить пароль</div><span class="chev">›</span></button>`,
-    EmailSwitch.isSynthetic() ? `<button class="row" id="pfEmail"><div class="grow">Привязать почту <span class="bdg-inrow"></span></div><span class="chev">›</span></button>` : '',
+    EmailSwitch.profileRow(),
     isLeader() ? `<button class="row" id="pfExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfAbout"><div class="grow">О проекте</div><span class="chev">›</span></button>`,
@@ -2518,7 +2556,7 @@ function vProfile(){
 
     <p class="tiny" style="margin-top:30px;text-align:center">© 2026 Damir Tadzhiev · Ordo</p>`, 'profile');
   $('#pfPw').onclick = () => Auth.changePassword();
-  const pe = $('#pfEmail'); if(pe) pe.onclick = () => EmailSwitch.openSheet();
+  const pe = $('#pfEmail'); if(pe) pe.onclick = () => { if(EmailSwitch.status() === 'synthetic') EmailSwitch.openSheet(); else EmailSwitch.openConfirmSheet(); };
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
   $('#pfAbout').onclick = () => {
