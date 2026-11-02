@@ -1962,7 +1962,7 @@ const EmailSwitch = {
     if(st === 'synthetic') return `<button class="row" id="pfEmail"><div class="grow">Привязать почту <span class="bdg-inrow"></span></div><span class="chev">›</span></button>`;
     if(st === 'pending') return `<button class="row" id="pfEmail"><div class="grow">Подтвердить почту <span class="bdg-inrow"></span><div class="sub">Письмо со ссылкой отправлено на ${esc(this.pendingEmail())}</div></div><span class="chev">›</span></button>`;
     if(st === 'unconfirmed') return `<button class="row" id="pfEmail"><div class="grow">Подтвердить почту <span class="bdg-inrow"></span><div class="sub">${esc(S.user?.email || '')} — почта ещё не подтверждена</div></div><span class="chev">›</span></button>`;
-    return `<div class="row"><div class="grow">Почта подтверждена<div class="sub">${esc(S.user?.email || '')}</div></div><span class="bdg-inrow ok"></span></div>`;
+    return `<button class="row" id="pfEmail"><div class="grow">Почта подтверждена<div class="sub">${esc(S.user?.email || '')}</div></div><span class="bdg-inrow ok"></span><span class="chev">›</span></button>`;
   },
   openConfirmSheet(){
     const st = this.status();
@@ -1983,18 +1983,21 @@ const EmailSwitch = {
       }catch(e){ err.textContent = authErrorMessage(e); err.classList.add('show'); }
     };
   },
-  openSheet(){
-    const w = sheet(`<h3>Вход по почте</h3>
-      <p class="body2" style="margin-top:8px">Введи почту — она станет твоим логином, пароль останется прежним. Если потребуется подтверждение, пришлём письмо со ссылкой — старый логин будет работать, пока не подтвердишь.</p>
-      <div class="field" style="margin-top:14px"><label>Почта</label><input class="inp" id="esEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
+  openSheet(change){
+    const cur = S.user?.email || '';
+    const w = sheet(`<h3>${change ? 'Сменить почту' : 'Вход по почте'}</h3>
+      <p class="body2" style="margin-top:8px">${change
+        ? `Сейчас твоя почта — ${esc(cur)}. Введи новую: пришлём письмо со ссылкой, и пока не подтвердишь, вход по текущей почте продолжит работать. Пароль не меняется.`
+        : 'Введи почту — она станет твоим логином, пароль останется прежним. Если потребуется подтверждение, пришлём письмо со ссылкой — старый логин будет работать, пока не подтвердишь.'}</p>
+      <div class="field" style="margin-top:14px"><label>${change ? 'Новая почта' : 'Почта'}</label><input class="inp" id="esEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
       <div class="err" id="esErr"></div>
-      <div class="actions"><button class="btn btn-q" id="esNo">Отмена</button><button class="btn btn-p" id="esGo">Привязать</button></div>`);
+      <div class="actions"><button class="btn btn-q" id="esNo">Отмена</button><button class="btn btn-p" id="esGo">${change ? 'Сменить' : 'Привязать'}</button></div>`);
     w.querySelector('#esNo').onclick = closeSheet;
     w.querySelector('#esGo').onclick = async () => {
       const err = w.querySelector('#esErr'); err.classList.remove('show');
       const email = w.querySelector('#esEmail').value.trim().toLowerCase();
       if(!email.includes('@') || email.endsWith('@ordo.invalid')){ err.textContent = 'Введи настоящую почту.'; err.classList.add('show'); return; }
-      if(S.user && S.user.email === email){ err.textContent = 'Эта почта уже привязана.'; err.classList.add('show'); return; }
+      if(S.user && S.user.email === email){ err.textContent = change ? 'Это твоя текущая почта.' : 'Эта почта уже привязана.'; err.classList.add('show'); return; }
       try{
         const { error } = await db.auth.updateUser({ email });
         if(error) throw error;
@@ -2556,7 +2559,7 @@ function vProfile(){
 
     <p class="tiny" style="margin-top:30px;text-align:center">© 2026 Damir Tadzhiev · Ordo</p>`, 'profile');
   $('#pfPw').onclick = () => Auth.changePassword();
-  const pe = $('#pfEmail'); if(pe) pe.onclick = () => { if(EmailSwitch.status() === 'synthetic') EmailSwitch.openSheet(); else EmailSwitch.openConfirmSheet(); };
+  const pe = $('#pfEmail'); if(pe) pe.onclick = () => { const st = EmailSwitch.status(); if(st === 'synthetic') EmailSwitch.openSheet(false); else if(st === 'confirmed') EmailSwitch.openSheet(true); else EmailSwitch.openConfirmSheet(); };
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
   $('#pfAbout').onclick = () => {
