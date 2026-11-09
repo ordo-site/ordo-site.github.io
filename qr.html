@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Ordo · QR-приглашение</title>
+<style>
+:root{color-scheme:light dark;--bg:#f5f5f7;--card:#fff;--fg:#1d1d1f;--mut:#6e6e73;--acc:#0a84ff;--line:#d2d2d7;--err:#d70015;box-sizing:border-box;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--fg:#f5f5f7;--mut:#98989d;--line:#38383a;--err:#ff453a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:460px;margin:0 auto;padding:24px 18px 40px}
+h1{font-size:24px;margin:8px 0 6px}
+p{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+label{display:block;font-weight:600;margin-bottom:8px}
+input{width:100%;font:inherit;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:12px;padding:12px}
+input:focus{outline:2px solid var(--acc);outline-offset:1px}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:12px 16px;background:var(--acc);color:#fff;width:100%;margin-top:12px;cursor:pointer}
+button.alt{background:transparent;color:var(--acc);border:1px solid var(--line)}
+#msg{color:var(--err);min-height:1.4em;margin:10px 0 0;font-size:14px}
+#res{display:none;margin-top:18px;text-align:center}
+#qr{background:#fff;padding:14px;border-radius:14px;display:inline-block;line-height:0}
+#qr svg{width:100%;height:auto;max-width:300px}
+#lnk{word-break:break-all;font-size:13px;color:var(--mut);margin:12px 0 0}
+small{display:block;color:var(--mut);margin-top:16px;font-size:13px}
+</style>
+</head>
+<body>
+<main>
+  <h1>QR-приглашение</h1>
+  <p>Вставьте ссылку-приглашение из Ordo, и я превращу её в QR-код. Группа сможет подключиться, просто наведя камеру телефона.</p>
+  <div class="card">
+    <label for="in">Ссылка-приглашение</label>
+    <input id="in" type="url" inputmode="url" autocomplete="off" placeholder="https://ordo-site.github.io/?invite=…">
+    <button id="go" type="button">Сделать QR</button>
+    <div id="msg" role="alert"></div>
+  </div>
+  <div id="res" class="card">
+    <div id="qr"></div>
+    <div id="lnk"></div>
+    <button id="png" type="button" class="alt">Сохранить картинкой</button>
+  </div>
+  <small>Всё происходит на вашем устройстве: ссылка никуда не отправляется. Если приглашение одноразовое, то и QR сработает один раз. Принимаются только ссылки на сайт Ordo.</small>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+(function(){
+  var ORIGIN = 'https://ordo-site.github.io';
+  var $ = function(id){ return document.getElementById(id); };
+  var svgText = '';
+
+  function clean(v){
+    v = (v || '').trim();
+    if(!v) return { err: 'Вставьте ссылку.' };
+    var u;
+    try { u = new URL(v); } catch(e){ return { err: 'Это не похоже на ссылку.' }; }
+    if(u.origin !== ORIGIN) return { err: 'Нужна ссылка на сайт Ordo (' + ORIGIN.replace('https://','') + ').' };
+    if(v.length > 600) return { err: 'Ссылка слишком длинная.' };
+    return { url: u.href };
+  }
+
+  function make(){
+    $('msg').textContent = '';
+    var r = clean($('in').value);
+    if(r.err){ $('res').style.display = 'none'; $('msg').textContent = r.err; return; }
+    if(typeof qrcode !== 'function'){ $('msg').textContent = 'Не загрузился генератор QR. Проверьте интернет и обновите страницу.'; return; }
+    var q = qrcode(0, 'M');
+    q.addData(r.url);
+    q.make();
+    svgText = q.createSvgTag(8, 4);
+    $('qr').innerHTML = svgText;
+    $('lnk').textContent = r.url;
+    $('res').style.display = 'block';
+  }
+
+  function savePng(){
+    if(!svgText) return;
+    var blob = new Blob([svgText], { type: 'image/svg+xml' });
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function(){
+      var c = document.createElement('canvas');
+      c.width = 800; c.height = 800;
+      var x = c.getContext('2d');
+      x.fillStyle = '#fff'; x.fillRect(0, 0, 800, 800);
+      x.imageSmoothingEnabled = false;
+      x.drawImage(img, 0, 0, 800, 800);
+      URL.revokeObjectURL(url);
+      c.toBlob(function(b){
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = 'ordo-qr.png';
+        document.body.appendChild(a); a.click(); a.remove();
+      }, 'image/png');
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); $('msg').textContent = 'Не удалось сохранить картинку. Сделайте скриншот QR.'; };
+    img.src = url;
+  }
+
+  $('go').addEventListener('click', make);
+  $('png').addEventListener('click', savePng);
+  $('in').addEventListener('keydown', function(e){ if(e.key === 'Enter') make(); });
+
+  var pre = new URLSearchParams(location.search).get('link');
+  if(pre){ $('in').value = pre; make(); }
+})();
+</script>
+</body>
+</html>
