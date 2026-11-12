@@ -2493,6 +2493,66 @@ async function vRequests(){
   }catch(e){ paint(`<div class="notice">${esc(authErrorMessage(e))}</div>`); }
   if(isStaff()) refreshReqBadge();
 }
+/* ---------------- волонтёрство ---------------- */
+const Vol = {
+  msg: { slots_full:'Мест больше нет', event_started:'Событие уже началось', event_closed:'Запись закрыта', forbidden:'Нет доступа к этому событию', event_not_found:'Событие не найдено', not_authenticated:'Войдите заново' },
+  err(e){ const m = String((e && e.message) || e); for(const k in this.msg) if(m.includes(k)) return this.msg[k]; return authErrorMessage(e); },
+  async load(){
+    const [ev, su] = await Promise.all([
+      db.from('volunteer_events').select('*').eq('closed', false).gte('starts_at', new Date().toISOString()).order('starts_at'),
+      db.from('volunteer_signups').select('event_id,status').eq('user_id', S.user.id)
+    ]);
+    if(ev.error) throw ev.error;
+    if(su.error) throw su.error;
+    const mine = {};
+    (su.data || []).forEach(x => { mine[x.event_id] = x.status; });
+    return { events: ev.data || [], mine };
+  },
+  async signup(id){ const r = await db.rpc('volunteer_signup', { p_event:id }); if(r.error) throw r.error; return r.data; },
+  async cancel(id){ const r = await db.rpc('volunteer_cancel', { p_event:id }); if(r.error) throw r.error; }
+};
+const VOL_ST = { pending:['Ожидает','amber'], approved:['Подтверждено','green'], rejected:['Отклонено','red'], attended:['Был(а)','green'], absent:['Не был(а)','red'] };
+async function vVolunteer(){
+  let list = document.getElementById('volList');
+  if(!list){
+    shell(`<h1 class="stitle" style="margin-top:4px">Волонтёрство</h1>
+      <p class="body2" style="margin-top:6px">Выберите событие и запишитесь. Куратор подтвердит участие.</p>
+      <div id="volList" style="margin-top:16px"></div>`, 'profile');
+    list = document.getElementById('volList');
+    if(!list) return;
+  }
+  const paint = h => { list.innerHTML = `<div class="vin">${h}</div>`; };
+  try{
+    const { events, mine } = await Vol.load();
+    if(!events.length){ paint('<p class="body2" style="color:var(--ter)">Пока нет предстоящих событий.</p>'); return; }
+    paint(`<div class="rows">` + events.map(e => {
+      const st = mine[e.id];
+      const info = VOL_ST[st];
+      const meta = [fmt(e.starts_at), e.hours > 0 ? e.hours + ' ч' : '', e.slots ? 'мест: ' + e.slots : ''].filter(Boolean).join(' · ');
+      const tag = st ? `<span class="tag ${info ? info[1] : 'blue'}">${esc(info ? info[0] : st)}</span>` : '';
+      const btn = !st ? `<button class="btn btn-p" style="min-height:44px;flex:1" data-vs="${esc(e.id)}">Записаться</button>`
+        : (st === 'pending' || st === 'approved') ? `<button class="btn btn-q" style="min-height:44px;flex:1" data-vc="${esc(e.id)}">Отменить запись</button>` : '';
+      return `<div class="row" style="align-items:flex-start"><div class="grow">
+        <b>${esc(e.title)}</b>
+        <div class="sub">${esc(meta)}</div>
+        ${e.description ? `<div class="sub" style="margin-top:4px">${esc(e.description)}</div>` : ''}
+        ${btn ? `<div style="display:flex;gap:8px;margin-top:10px">${btn}</div>` : ''}
+      </div>${tag}</div>`;
+    }).join('') + `</div>`);
+    list.querySelectorAll('[data-vs]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      try{ await Vol.signup(b.dataset.vs); toast('Вы записаны, ждите подтверждения'); }
+      catch(e){ toast(Vol.err(e)); }
+      vVolunteer();
+    });
+    list.querySelectorAll('[data-vc]').forEach(b => b.onclick = () =>
+      confirmBox('Отменить запись?', 'Куратор увидит, что вы отказались.', 'Отменить запись', async () => {
+        try{ await Vol.cancel(b.dataset.vc); toast('Запись отменена'); }
+        catch(e){ toast(Vol.err(e)); }
+        vVolunteer();
+      }, true));
+  }catch(e){ paint(`<div class="notice">${esc(Vol.err(e))}</div>`); }
+}
 
 /* ---------------- profile ---------------- */
 /* Донатеры: новые добавляются одной строчкой */
@@ -2536,6 +2596,7 @@ function vProfile(){
     EmailSwitch.profileRow(),
     isLeader() ? `<button class="row" id="pfExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
+    `<button class="row" id="pfVol"><div class="grow"><b>Волонтёрство</b><div class="sub">События и запись</div></div><span class="chev">›</span></button>`,
     `<button class="row" id="pfAbout"><div class="grow">О проекте</div><span class="chev">›</span></button>`,
     `<button class="row" id="pfOut"><div class="grow" style="color:var(--red)">Выйти</div></button>`
   ].join('');
@@ -2567,6 +2628,7 @@ function vProfile(){
   const pe = $('#pfEmail'); if(pe) pe.onclick = () => { const st = EmailSwitch.status(); if(st === 'synthetic') EmailSwitch.openSheet(false); else if(st === 'confirmed') EmailSwitch.openSheet(true); else EmailSwitch.openConfirmSheet(); };
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
+  const vl = $('#pfVol'); if(vl) vl.onclick = () => { S.view = 'vol'; render(); };
   $('#pfAbout').onclick = () => {
     sheet(`<h3>О проекте</h3>
     <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.</p>
@@ -2827,6 +2889,7 @@ function render(){
   if(v === 'queue') vQueue();
   else if(v === 'people' && isLeader()) vPeople();
   else if(v === 'requests') vRequests();
+  else if(v === 'vol') vVolunteer();
   else if(v === 'profile') vProfile();
   else if(v === 'admin' && isStaff()) vAdmin();
   else { S.view = 'home'; vHome(); }
