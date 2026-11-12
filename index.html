@@ -2574,6 +2574,154 @@ const Donors = {
 };
 const Team = {
   open(){
+/* ---------------- волонтёрство: куратор ---------------- */
+const VolM = {
+  canCollege(){ return ['admin','head'].includes(S.profile && S.profile.role); },
+  async load(){
+    let q = db.from('volunteer_events').select('*').order('starts_at', { ascending:false }).limit(40);
+    if(!isStaff()) q = q.eq('group_id', S.group.id);
+    const ev = await q;
+    if(ev.error) throw ev.error;
+    const events = ev.data || [];
+    const counts = {};
+    if(events.length){
+      const su = await db.from('volunteer_signups').select('event_id,status').in('event_id', events.map(e => e.id));
+      if(su.error) throw su.error;
+      (su.data || []).forEach(x => { const c = counts[x.event_id] || (counts[x.event_id] = {}); c[x.status] = (c[x.status] || 0) + 1; });
+    }
+    return { events, counts };
+  },
+  compose(){
+    const col = this.canCollege();
+    const w = sheet(`<h3>Новое событие</h3>
+      <div data-scroll style="margin-top:10px;max-height:62vh;overflow:auto;overscroll-behavior:contain">
+      <div class="field"><label>Название</label><input class="inp" id="vmT" maxlength="120" autocomplete="off"></div>
+      <div class="field"><label>Описание (необязательно)</label><textarea class="inp" id="vmD" rows="2" maxlength="1000"></textarea></div>
+      <div class="field"><label>Дата и время начала</label><input class="inp" id="vmW" type="datetime-local"></div>
+      <div class="field"><label>Часов за участие</label><input class="inp" id="vmH" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="2"></div>
+      <div class="field"><label>Мест (пусто — без лимита)</label><input class="inp" id="vmS" type="number" inputmode="numeric" min="1" max="500"></div>
+      ${col ? `<div class="field"><label>Для кого</label><select class="inp" id="vmG"><option value="g">Только моя группа</option><option value="c">Весь колледж</option></select></div>` : ''}
+      </div>
+      <div class="actions"><button class="btn btn-q" id="vmNo">Отмена</button><button class="btn btn-p" id="vmYes">Создать</button></div>`);
+    w.querySelector('#vmNo').onclick = closeSheet;
+    w.querySelector('#vmYes').onclick = async () => {
+      const title = w.querySelector('#vmT').value.trim();
+      const desc = w.querySelector('#vmD').value.trim();
+      const when = new Date(w.querySelector('#vmW').value);
+      const hours = parseFloat(w.querySelector('#vmH').value || '0');
+      const slotsRaw = w.querySelector('#vmS').value.trim();
+      const slots = slotsRaw ? parseInt(slotsRaw, 10) : null;
+      const scope = col ? w.querySelector('#vmG').value : 'g';
+      if(title.length < 3) return toast('Название — минимум 3 символа');
+      if(isNaN(when)) return toast('Укажите дату и время');
+      if(when <= new Date()) return toast('Время должно быть в будущем');
+      if(isNaN(hours) || hours < 0 || hours > 24) return toast('Часы: от 0 до 24');
+      if(slots !== null && (isNaN(slots) || slots < 1 || slots > 500)) return toast('Мест: от 1 до 500');
+      const btn = w.querySelector('#vmYes'); btn.disabled = true;
+      try{
+        const r = await db.from('volunteer_events').insert({
+          college_id: S.profile.college_id,
+          group_id: scope === 'c' ? null : S.group.id,
+          title, description: desc || null, starts_at: when.toISOString(), hours, slots
+        });
+        if(r.error) throw r.error;
+        closeSheet(); toast('Событие создано'); vVolManage();
+      }catch(e){ btn.disabled = false; toast(Vol.err(e)); }
+    };
+  },
+  people(id){
+    const w = sheet(`<h3>Участники</h3>
+      <div data-scroll id="vmBody" style="margin-top:10px;max-height:62vh;overflow:auto;overscroll-behavior:contain"><p class="body2">Загрузка…</p></div>
+      <div class="actions"><button class="btn btn-p" id="vmOk">Закрыть</button></div>`);
+    w.querySelector('#vmOk').onclick = closeSheet;
+    const body = w.querySelector('#vmBody');
+    const fill = async () => {
+      try{
+        const r = await db.rpc('volunteer_event_signups', { p_event:id });
+        if(r.error) throw r.error;
+        const rows = r.data || [];
+        body.innerHTML = rows.length ? `<div class="rows">` + rows.map(x => {
+          const info = VOL_ST[x.o_status];
+          const acts = x.o_status === 'pending'
+            ? [['approved','Подтвердить','btn-q'],['rejected','Отклонить','btn-danger-q']]
+            : x.o_status === 'approved' ? [['attended','Был(а)','btn-q'],['absent','Не был(а)','btn-danger-q']] : [];
+          return `<div class="row" style="align-items:flex-start"><div class="grow">
+            <b>${esc(x.o_name)}</b>
+            <div class="sub">${esc(x.o_group || '')}</div>
+            ${acts.length ? `<div style="display:flex;gap:8px;margin-top:10px">${acts.map(a => `<button class="btn ${a[2]}" style="min-height:44px;flex:1" data-vd="${esc(x.o_user_id)}|${a[0]}">${a[1]}</button>`).join('')}</div>` : ''}
+          </div><span class="tag ${info ? info[1] : 'blue'}">${esc(info ? info[0] : x.o_status)}</span></div>`;
+        }).join('') + `</div>` : `<p class="body2" style="color:var(--ter)">Пока никто не записался.</p>`;
+        body.querySelectorAll('[data-vd]').forEach(b => b.onclick = async () => {
+          const [uid, st] = b.dataset.vd.split('|');
+          b.disabled = true;
+          try{
+            const d = await db.rpc('volunteer_decide', { p_event:id, p_user:uid, p_status:st });
+            if(d.error) throw d.error;
+          }catch(e){ toast(Vol.err(e)); }
+          await fill(); vVolManage();
+        });
+      }catch(e){ body.innerHTML = `<div class="notice">${esc(Vol.err(e))}</div>`; }
+    };
+    fill();
+  },
+  async patch(id, fields){
+    const r = await db.from('volunteer_events').update(fields).eq('id', id).select('id');
+    if(r.error) throw r.error;
+    if(!(r.data || []).length) throw new Error('forbidden');
+  },
+  async remove(id){
+    const r = await db.from('volunteer_events').delete().eq('id', id).select('id');
+    if(r.error) throw r.error;
+    if(!(r.data || []).length) throw new Error('forbidden');
+  }
+};
+async function vVolManage(){
+  let list = document.getElementById('vmList');
+  if(!list){
+    shell(`<h1 class="stitle" style="margin-top:4px">Волонтёрство · куратор</h1>
+      <p class="body2" style="margin-top:6px">Создавайте события, подтверждайте заявки и отмечайте, кто пришёл.</p>
+      <div style="margin-top:16px"><button class="btn btn-p" id="vmNew" style="width:100%">＋ Новое событие</button></div>
+      <div id="vmList" style="margin-top:16px"></div>`, 'profile');
+    document.getElementById('vmNew').onclick = () => VolM.compose();
+    list = document.getElementById('vmList');
+    if(!list) return;
+  }
+  const paint = h => { list.innerHTML = `<div class="vin">${h}</div>`; };
+  try{
+    const { events, counts } = await VolM.load();
+    if(!events.length){ paint('<p class="body2" style="color:var(--ter)">Событий пока нет. Создайте первое.</p>'); return; }
+    paint(`<div class="rows">` + events.map(e => {
+      const c = counts[e.id] || {};
+      const who = e.group_id ? ((S.groups || []).find(g => g.id === e.group_id) || {}).name || 'группа' : 'весь колледж';
+      const meta = [fmt(e.starts_at), who, e.hours > 0 ? e.hours + ' ч' : '', e.slots ? 'мест: ' + e.slots : ''].filter(Boolean).join(' · ');
+      const stat = `ожидают ${c.pending || 0} · подтверждено ${c.approved || 0} · были ${c.attended || 0}`;
+      return `<div class="row" style="align-items:flex-start"><div class="grow">
+        <b>${esc(e.title)}</b>
+        <div class="sub">${esc(meta)}</div>
+        <div class="sub" style="margin-top:2px">${esc(stat)}</div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-q" style="min-height:44px;flex:1" data-vmo="${esc(e.id)}">Участники</button>
+          <button class="btn btn-q" style="min-height:44px;flex:1" data-vmc="${esc(e.id)}|${e.closed ? 0 : 1}">${e.closed ? 'Открыть запись' : 'Закрыть запись'}</button>
+          <button class="btn btn-danger-q" style="min-height:44px;flex:1" data-vmx="${esc(e.id)}">Удалить</button>
+        </div>
+      </div>${e.closed ? '<span class="tag amber">Закрыто</span>' : ''}</div>`;
+    }).join('') + `</div>`);
+    list.querySelectorAll('[data-vmo]').forEach(b => b.onclick = () => VolM.people(b.dataset.vmo));
+    list.querySelectorAll('[data-vmc]').forEach(b => b.onclick = async () => {
+      const [id, cl] = b.dataset.vmc.split('|');
+      try{ await VolM.patch(id, { closed: cl === '1' }); toast(cl === '1' ? 'Запись закрыта' : 'Запись открыта'); }
+      catch(e){ toast(Vol.err(e)); }
+      vVolManage();
+    });
+    list.querySelectorAll('[data-vmx]').forEach(b => b.onclick = () =>
+      confirmBox('Удалить событие?', 'Все записи участников тоже удалятся.', 'Удалить', async () => {
+        try{ await VolM.remove(b.dataset.vmx); toast('Событие удалено'); }
+        catch(e){ toast(Vol.err(e)); }
+        vVolManage();
+      }, true));
+  }catch(e){ paint(`<div class="notice">${esc(Vol.err(e))}</div>`); }
+}
+
     const w = sheet(`<h3>Команда</h3>
     <div class="team2" style="margin-top:14px"><div class="tcard" style="display:none"><img class="tava" alt="Audrey" src="img/team-audrey.jpg"><div><div class="tname">Audrey</div></div></div><div class="tcard"><img class="tava" alt="Дамир Таджиев" src="img/team-damir.jpg"><div><div class="tname"><span aria-hidden="true">𝔇𝔞𝔪𝔦𝔯</span><span class="sr-only">Дамир Таджиев</span></div><div class="trole">Автор сайта</div></div></div><div class="tcard"><img class="tava" alt="Алексей Дергалёв" src="img/team-alex.jpg"><div><div class="tname">Алексей Дергалёв</div><div class="trole">Глава старост</div></div></div></div>
     <div class="actions"><button class="btn btn-p" id="tmOk">Закрыть</button></div>`);
@@ -2597,6 +2745,7 @@ function vProfile(){
     isLeader() ? `<button class="row" id="pfExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfVol"><div class="grow"><b>Волонтёрство</b><div class="sub">События и запись</div></div><span class="chev">›</span></button>`,
+        isLeader() ? `<button class="row" id="pfVolM"><div class="grow"><b>Волонтёрство · куратор</b><div class="sub">События и заявки</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfAbout"><div class="grow">О проекте</div><span class="chev">›</span></button>`,
     `<button class="row" id="pfOut"><div class="grow" style="color:var(--red)">Выйти</div></button>`
   ].join('');
@@ -2629,6 +2778,7 @@ function vProfile(){
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
   const vl = $('#pfVol'); if(vl) vl.onclick = () => { S.view = 'vol'; render(); };
+    const vm = $('#pfVolM'); if(vm) vm.onclick = () => { S.view = 'volm'; render(); };
   $('#pfAbout').onclick = () => {
     sheet(`<h3>О проекте</h3>
     <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.</p>
@@ -2890,6 +3040,7 @@ function render(){
   else if(v === 'people' && isLeader()) vPeople();
   else if(v === 'requests') vRequests();
   else if(v === 'vol') vVolunteer();
+  else if(v === 'volm' && isLeader()) vVolManage();
   else if(v === 'profile') vProfile();
   else if(v === 'admin' && isStaff()) vAdmin();
   else { S.view = 'home'; vHome(); }
