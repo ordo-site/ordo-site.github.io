@@ -2572,8 +2572,7 @@ const Donors = {
     w.querySelector('#dnOk').onclick = closeSheet;
   }
 };
-const Team = {
-  open(){
+
 /* ---------------- волонтёрство: куратор ---------------- */
 const VolM = {
   canCollege(){ return ['admin','head'].includes(S.profile && S.profile.role); },
@@ -2722,6 +2721,8 @@ async function vVolManage(){
   }catch(e){ paint(`<div class="notice">${esc(Vol.err(e))}</div>`); }
 }
 
+const Team = {
+  open(){
     const w = sheet(`<h3>Команда</h3>
     <div class="team2" style="margin-top:14px"><div class="tcard" style="display:none"><img class="tava" alt="Audrey" src="img/team-audrey.jpg"><div><div class="tname">Audrey</div></div></div><div class="tcard"><img class="tava" alt="Дамир Таджиев" src="img/team-damir.jpg"><div><div class="tname"><span aria-hidden="true">𝔇𝔞𝔪𝔦𝔯</span><span class="sr-only">Дамир Таджиев</span></div><div class="trole">Автор сайта</div></div></div><div class="tcard"><img class="tava" alt="Алексей Дергалёв" src="img/team-alex.jpg"><div><div class="tname">Алексей Дергалёв</div><div class="trole">Глава старост</div></div></div></div>
     <div class="actions"><button class="btn btn-p" id="tmOk">Закрыть</button></div>`);
