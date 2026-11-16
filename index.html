@@ -355,6 +355,9 @@ a.row:active{background:var(--fill)}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+/* date fields on iOS: keep inside the sheet */
+input.inp[type="datetime-local"],input.inp[type="date"],input.inp[type="time"]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;box-sizing:border-box;text-align:left}
+input.inp[type="datetime-local"]::-webkit-date-and-time-value{text-align:left;min-height:1.3em}
 </style>
 </head>
 <body>
@@ -2746,7 +2749,7 @@ function vProfile(){
     isLeader() ? `<button class="row" id="pfExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfVol"><div class="grow"><b>Волонтёрство</b><div class="sub">События и запись</div></div><span class="chev">›</span></button>`,
-        isLeader() ? `<button class="row" id="pfVolM"><div class="grow"><b>Волонтёрство · куратор</b><div class="sub">События и заявки</div></div><span class="chev">›</span></button>` : '',
+        isStaff() ? `<button class="row" id="pfVolM"><div class="grow"><b>Волонтёрство · куратор</b><div class="sub">События и заявки</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfAbout"><div class="grow">О проекте</div><span class="chev">›</span></button>`,
     `<button class="row" id="pfOut"><div class="grow" style="color:var(--red)">Выйти</div></button>`
   ].join('');
@@ -3041,7 +3044,7 @@ function render(){
   else if(v === 'people' && isLeader()) vPeople();
   else if(v === 'requests') vRequests();
   else if(v === 'vol') vVolunteer();
-  else if(v === 'volm' && isLeader()) vVolManage();
+  else if(v === 'volm' && isStaff()) vVolManage();
   else if(v === 'profile') vProfile();
   else if(v === 'admin' && isStaff()) vAdmin();
   else { S.view = 'home'; vHome(); }
