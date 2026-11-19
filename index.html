@@ -1189,7 +1189,7 @@ const Duty = {
     const warn = dutyWindowOpen() ? '' :
       `<div class="notice warn">Вне расписания (будни 8:00–16:30). Действие попадёт в журнал.</div>`;
     const w = sheet(`<h3>Кто дежурит?</h3>
-      <p class="body2" style="margin-top:6px">В паре не больше одного должника. Если кто-то дежурит за другого, тот не получает долг и уходит в конец очереди.</p>
+      <p class="body2" style="margin-top:6px">В паре не больше одного должника. Если кто-то дежурит за другого, в конец очереди уходит заменивший, а заменённый остаётся на месте и дежурит следующим.</p>
       <div style="margin-top:14px">${pair.map((p,i) => `
         <div class="field"${i===1 ? ' data-second="1"' : ''}><label>${esc(p.name)} ${ds.has(p.id) ? '<span class="tag amber">должник</span>' : '<span class="tag">по очереди</span>'}</label>
         <select class="inp" data-slot="${esc(p.id)}">
@@ -1227,18 +1227,40 @@ const Duty = {
       const names = ids.map(id => S.people.find(p => p.id === id)?.name || '?');
       const assignComment = (w.querySelector('#stComment')?.value || '').trim();
       S.state.current = { ids, names, startedAt:new Date().toISOString(), forIds, mainIds:ids.slice(0,2), marks:Object.fromEntries(ids.map(id => [id, STATUS.PRESENT])), assignComment };
-      /* rotation: spent turns go to the end; paused people keep their stored places */
+      /* rotation: в конец уходят те, кто реально дежурит (заменивший), а заменённый остаётся на своём месте
+         и дежурит следующим; приостановленные сохраняют свои места */
       {
-        const turnSet = new Set(turn);
-        const kept = (S.state.queue || []).filter(id => !turnSet.has(id));
-        S.state.queue = kept.concat(turn.filter(id => !kept.includes(id)));
+        const workSet = new Set(ids);
+        const kept = (S.state.queue || []).filter(id => !workSet.has(id));
+        S.state.queue = kept.concat(ids.filter(id => !kept.includes(id)));
       }
       await Store.saveState();
       await Store.audit('duty_started', { ids, names, assignComment });
       closeSheet(); render(); toast('Дежурство началось');
     });
   },
-  finish(){
+  /* напоминание: дежурство начато в один из прошлых дней и не закрыто — спрашиваем при заходе (раз за сессию) */
+  remind(){
+    const c = S.state && S.state.current;
+    if(!c || !c.startedAt || !isLeader() || S._finRemind || S.fromCache) return;
+    const t0 = new Date(c.startedAt), today = new Date(); today.setHours(0, 0, 0, 0);
+    if(isNaN(t0) || t0 >= today) return;
+    const key = 'ordo-finq-' + c.startedAt;
+    try{ if(sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); }catch(_){}
+    S._finRemind = true;
+    setTimeout(() => {
+      const cur = S.state && S.state.current;
+      if(!cur || cur.startedAt !== c.startedAt || document.getElementById('sheetWrap')) return;
+      const when = t0.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
+      const who = (c.names || []).map(n => esc(n)).join(' и ');
+      const w = sheet(`<h3>Дежурство не закрыто</h3>
+        <p class="body2" style="margin-top:8px">${esc(when)} дежурили: <b>${who}</b>. Отметьте, кто пришёл, чтобы очередь и долги посчитались верно.</p>
+        <div class="actions"><button class="btn btn-q" id="frLater">Позже</button><button class="btn btn-p" id="frNow">Отметить</button></div>`);
+      w.querySelector('#frLater').onclick = closeSheet;
+      w.querySelector('#frNow').onclick = () => { closeSheet(); Duty.finish({ blank:true }); };
+    }, 800);
+  },
+  finish(opts){
     const c = S.state.current;
     if(!c) return;
     const nm = id => S.people.find(p => p.id === id)?.name || '?';
@@ -1276,7 +1298,7 @@ const Duty = {
     w.querySelectorAll('[data-m]').forEach(b => b.onclick = () => pick(b));
     /* pre-fill from live marks (default: everyone present) — one confident gesture, adjustable */
     const live = c.marks || {};
-    w.querySelectorAll('[data-m]').forEach(b => {
+    if(!(opts && opts.blank === true)) w.querySelectorAll('[data-m]').forEach(b => {
       const [id, st] = b.dataset.m.split('|');
       if(st === (live[id] || STATUS.PRESENT)) pick(b);
     });
@@ -3049,6 +3071,7 @@ function render(){
   else if(v === 'admin' && isStaff()) vAdmin();
   else { S.view = 'home'; vHome(); }
   paintDutyTimer(); /* таймер — сразу, а не через 15 секунд */
+  if(v === 'home' || v === 'queue') Duty.remind();
 }
 
 /* ---------------- init ---------------- */
