@@ -18,6 +18,15 @@
 <meta name="copyright" content="© 2026 Damir Tadzhiev. All rights reserved.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjMDAwIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSI1MCIgcj0iMjEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxMSIvPjxjaXJjbGUgY3g9Ijc2IiBjeT0iNTAiIHI9IjEzIiBmaWxsPSIjMEE4NEZGIi8+PC9zdmc+">
 <meta name="theme-color" content="#000000">
+<meta name="description" content="Ordo — дежурство без лишнего. Очередь дежурств для студенческих групп: назначения, отметки и история.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ordo">
+<meta property="og:title" content="Ordo — дежурство без лишнего">
+<meta property="og:description" content="Очередь дежурств для студенческих групп: назначения, отметки и история.">
+<meta property="og:url" content="https://ordo-site.github.io/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Ordo — дежурство без лишнего">
+<meta name="twitter:description" content="Очередь дежурств для студенческих групп: назначения, отметки и история.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Ordo">
@@ -37,7 +46,7 @@ html,body{margin:0;padding:0;overscroll-behavior-y:none}
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",system-ui,"Segoe UI",Roboto,sans-serif;
   --bg:#000000; --bg2:#0c0c0e;
   --text:#ffffff;
-  --sec:rgba(235,235,245,.62); --ter:rgba(235,235,245,.34);
+  --sec:rgba(235,235,245,.72); --ter:rgba(235,235,245,.5);
   --hair:rgba(255,255,255,.13);
   --fill:rgba(120,120,128,.22);
   --accent:#0A84FF; --accent-ink:#ffffff; --accent-soft:rgba(10,132,255,.15);
@@ -51,7 +60,7 @@ body.light{
   color-scheme:light;
   --bg:#f2f2f7; --bg2:#ffffff;
   --text:#000000;
-  --sec:rgba(60,60,67,.62); --ter:rgba(60,60,67,.34);
+  --sec:rgba(60,60,67,.76); --ter:rgba(60,60,67,.52);
   --hair:rgba(60,60,67,.13);
   --fill:rgba(120,120,128,.15);
   --accent:#007AFF; --accent-ink:#ffffff; --accent-soft:rgba(0,122,255,.12);
@@ -114,7 +123,7 @@ a{color:var(--accent);text-decoration:none}
 .sechead .chev{display:inline-block;transition:transform .18s ease;color:var(--sec);font-size:18px}
 .sechead.open .chev{transform:rotate(90deg)}
 .body2{font-size:15px;line-height:1.45;color:var(--sec)}
-.tiny{font-size:13px;line-height:1.4;color:var(--ter)}
+.tiny{font-size:13px;line-height:1.4;color:var(--sec)}
 
 /* ---------- layout ---------- */
 .wrap{max-width:620px;margin:0 auto;padding:0 20px}
@@ -164,6 +173,8 @@ main.screen{padding:26px 0 calc(120px + env(safe-area-inset-bottom,0px))}
 .linkbtn{color:var(--accent);font-size:15px;font-weight:500;padding:10px 4px;transition:transform .12s var(--spring)}
 .linkbtn:active{transform:scale(.96)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip{position:fixed;top:calc(10px + env(safe-area-inset-top));left:12px;z-index:99999;background:var(--bg2);color:var(--text);border:1px solid var(--hair);border-radius:12px;padding:10px 16px;font-size:15px;font-weight:600;text-decoration:none;transform:translateY(-160%);transition:transform .2s var(--spring)}
+.skip:focus{transform:translateY(0)}
 .iabtn{background:var(--fill);border:0;border-radius:12px;min-height:44px;min-width:44px;padding:12px 16px;font-size:15px;font-weight:600;color:var(--accent);-webkit-tap-highlight-color:transparent}
 .iabtn.danger{color:var(--red)}
 .iabtn:active{transform:scale(.97)}
@@ -174,6 +185,7 @@ main.screen{padding:26px 0 calc(120px + env(safe-area-inset-bottom,0px))}
 .field label{display:block;font-size:14px;font-weight:500;color:var(--sec);margin:0 0 7px 2px}
 .inp,select.inp,textarea.inp{width:100%;min-height:56px;border:0;border-radius:14px;background:var(--fill);padding:14px 16px;font-size:17px;color:var(--text);outline:none;transition:box-shadow .2s}
 .inp:focus{box-shadow:0 0 0 2.5px var(--accent)}
+.inp:disabled{opacity:.55;color:var(--sec)}
 .inp::placeholder{color:var(--ter)}
 select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:42px}
 /* нативный выпадающий список: явные цвета опций, иначе в тёмной теме белый текст на белом */
@@ -204,7 +216,7 @@ button.row:active{background:var(--fill)}
 /* ---------- queue list ---------- */
 .qrow{display:flex;align-items:center;gap:14px;padding:15px 4px;border-bottom:1px solid var(--hair)}
 .qrow:last-child{border-bottom:0}
-.qnum{font-size:15px;font-weight:600;color:var(--ter);width:30px;font-variant-numeric:tabular-nums}
+.qnum{font-size:15px;font-weight:600;color:var(--sec);width:30px;font-variant-numeric:tabular-nums}
 .qrow.me .qnum{color:var(--accent)}
 #verBar{position:fixed;top:calc(66px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:99995;display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--hair);border-radius:999px;padding:8px 8px 8px 16px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow);animation:vdown .35s var(--spring);max-width:calc(100vw - 32px)}
 #verBar .vtxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -259,7 +271,7 @@ button.row:active{background:var(--fill)}
 /* ---------- tabbar ---------- */
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--bar);-webkit-backdrop-filter:blur(24px) saturate(1.7);backdrop-filter:blur(24px) saturate(1.7);border-top:1px solid var(--hair)}
 .tabbar-in{max-width:620px;margin:0 auto;display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--ter);font-size:10.5px;font-weight:500;position:relative;transition:color .2s}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--sec);font-size:11.5px;font-weight:600;position:relative;transition:color .2s}
 .tab svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tab.on{color:var(--accent)}
 .tab .bdg{position:absolute;top:2px;right:calc(50% - 20px);min-width:19px;height:19px;border-radius:10px;background:var(--red);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px}
@@ -280,7 +292,7 @@ details.faq .policy p{margin:0 0 10px}
 .avatar{width:46px;height:46px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex:none;position:relative}
 .ondot{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:#0A84FF;border:2px solid var(--bg);animation:odot 2.2s infinite}
 @keyframes odot{0%{box-shadow:0 0 0 0 rgba(10,132,255,.5)}70%{box-shadow:0 0 0 9px rgba(10,132,255,0)}100%{box-shadow:0 0 0 0 rgba(10,132,255,0)}}
-.hday{font-size:13px;font-weight:600;color:var(--ter);margin:18px 0 6px;text-transform:capitalize}
+.hday{font-size:13px;font-weight:600;color:var(--sec);margin:18px 0 6px;text-transform:capitalize}
 .hrow{display:flex;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--hair);font-size:15px}
 .hrow:last-child{border-bottom:0}
 .timer{font-variant-numeric:tabular-nums;color:var(--sec);font-size:15px}
@@ -340,28 +352,39 @@ a.row:active{background:var(--fill)}
 .dsum{display:inline-flex;align-items:center;margin-top:8px;padding:4px 11px;border-radius:999px;background:var(--fill);color:var(--text);font-size:13.5px;font-weight:650}
 .tnote{margin-top:8px;color:var(--ter);font-size:12.5px}
 .tcard .tnote{color:var(--sec)}
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}
-}
 @media (min-width:700px){
   .auth{max-width:440px}
 }
 @media (min-width:900px){
   /* desktop experiment: slightly wider column */
   .wrap,.topbar-in,.tabbar-in,.sheet{max-width:760px}
+  .hero{font-size:56px}
+  .stitle{font-size:34px}
 }
 /* a11y */
-:focus-visible{outline:2px solid #0A84FF;outline-offset:2px}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
 /* date fields on iOS: keep inside the sheet */
 input.inp[type="datetime-local"],input.inp[type="date"],input.inp[type="time"]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;box-sizing:border-box;text-align:left}
 input.inp[type="datetime-local"]::-webkit-date-and-time-value{text-align:left;min-height:1.3em}
+/* long unbroken text wraps instead of widening the sheet; Edge's own password eye is hidden (the app has its own) */
+.sheet{overflow-x:hidden}
+textarea.inp,.row .grow,.row .sub,.hrow .grow,.body2{overflow-wrap:anywhere;word-break:break-word}
+input::-ms-reveal,input::-ms-clear{display:none}
+@media (hover:hover) and (pointer:fine){
+  .btn:not([disabled]):hover,.iconbtn:hover{filter:brightness(1.1)}
+  .linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
+  .tab:hover{color:var(--sec)}
+  .fchip:hover{border-color:var(--sec);color:var(--text)}
+  .gmenu button:hover{background:var(--fill)}
+}
 </style>
 </head>
 <body>
 <script>try{var t=localStorage.getItem('dutysite-theme');if(t!=='light')document.body.classList.remove('light');else document.body.classList.add('light')}catch(e){}</script>
+<a class="skip" href="#main">Перейти к содержимому</a>
 <div id="root"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
@@ -487,7 +510,8 @@ function authErrorMessage(e){
     request_limit:'Слишком много запросов: дождитесь решения по прежним.',
     recently_rejected:'Этот запрос недавно отклонили.',
     removal_one_pending:'Такой запрос уже ожидает решения.',
-    claim_code_not_found_or_expired:'Код не найден или истёк. Нужен персональный код — его выдаёт староста, это не код группы.'
+    claim_code_not_found_or_expired:'Код не найден или истёк. Нужен персональный код — его выдаёт староста, это не код группы.',
+    group_state_size:'Слишком большой объём данных. Сократите комментарий.'
   };
   const m = String(e?.message || e || '');
   for(const k in MAP) if(m.includes(k)) return MAP[k];
@@ -496,6 +520,8 @@ function authErrorMessage(e){
   if(/already.*registered|email.*already.*(exists|use)|user.*already.*exists/i.test(m)) return 'Эта почта уже занята другим аккаунтом.';
   if(/user.*not.*found|no.*user/i.test(m)) return 'Такого логина нет. Проверьте написание.';
   if(/permission denied/i.test(m)) return 'Нет прав на это действие.';
+  if(/rate limit|over_email_send_rate_limit|too many requests/i.test(m)) return 'Слишком много писем за короткое время. Подождите около часа и попробуйте снова.';
+  if(/violates check constraint/i.test(m)) return 'Данные не прошли проверку. Проверьте введённое и сократите длинные тексты.';
   return m || 'Не получилось. Попробуйте ещё раз.';
 }
 
@@ -518,6 +544,12 @@ function sheet(html, opts){
   document.body.appendChild(w);
   document.body.style.overflow = 'hidden';
   const sh = w.querySelector('.sheet');
+  /* a11y: заголовок шторки = имя диалога, фокус внутрь, Escape закрывает (кроме lock) */
+  const h3 = sh.querySelector('h3');
+  if(h3){ h3.id = 'sheetTitle-' + Date.now(); sh.setAttribute('aria-labelledby', h3.id); }
+  sh.tabIndex = -1;
+  requestAnimationFrame(() => { try{ sh.focus({ preventScroll:true }); }catch(_){ sh.focus(); } });
+  w.addEventListener('keydown', e => { if(e.key === 'Escape' && !lock) closeSheet(); });
   let sy = null, dy = 0;
   sh.addEventListener('touchstart', e => { sy = e.touches[0].clientY; dy = 0; }, {passive:true});
   sh.addEventListener('touchmove', e => {
@@ -889,6 +921,7 @@ const Auth = {
       </div>
       <button class="iconbtn themebtn" id="loginTheme" aria-label="Переключить тему" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px"></button>
     </div>`;
+    document.title = 'Ordo';
     Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
     $('#loginTheme').onclick = Theme.toggle;
     $('#brandAuth').addEventListener('click', easterTap);
@@ -1200,7 +1233,7 @@ const Duty = {
         <p class="body2" data-solo-note hidden style="color:var(--sec)">Второй не назначен — дежурит один.</p></div>
       ${warn}
       <div class="field" style="margin-top:6px"><label>Комментарий</label>
-        <textarea class="inp" id="stComment" rows="2" placeholder="Необязательно"></textarea></div>
+        <textarea class="inp" id="stComment" rows="2" maxlength="300" placeholder="Необязательно"></textarea></div>
       <div class="actions"><button class="btn btn-q" id="stNo">Отмена</button><button class="btn btn-p" id="stYes">Начать</button></div>`);
     const secondField = w.querySelector('[data-second]'), soloNote = w.querySelector('[data-solo-note]');
     const secondSel = secondField ? secondField.querySelector('select') : null;
@@ -1277,7 +1310,7 @@ const Duty = {
         </div></div>`).join('')}</div>
       ${c.assignComment ? `<p class="body2" style="margin-top:6px">Комментарий при назначении: ${esc(c.assignComment)}</p>` : ''}
       <div class="field" style="margin-top:6px"><label>Комментарий</label>
-        <textarea class="inp" id="finComment" rows="2" placeholder="Необязательно"></textarea></div>
+        <textarea class="inp" id="finComment" rows="2" maxlength="300" placeholder="Необязательно"></textarea></div>
       <div class="actions"><button class="btn btn-q" id="finNo">Отмена</button>
       <button class="btn btn-p" id="finYes" disabled>Записать</button></div>`);
     const yes = w.querySelector('#finYes');
@@ -2161,6 +2194,8 @@ function shell(content, active){
   tabs.push(['requests','Обращения',ICON.chat]);
   tabs.push(['profile','Профиль',ICON.user]);
   const short = (S.profile?.display_name || S.user?.email || '').split('@')[0];
+  const _titles = { home:'Главная', queue:'Очередь', people:'Группа', requests:'Обращения', profile:'Профиль', admin:'Администрирование', vol:'Волонтёрство', volm:'Волонтёрство · куратор' };
+  document.title = (_titles[S.view] || 'Ordo') + ' · Ordo';
   root.innerHTML = `
   <div class="topbar"><div class="topbar-in">
     ${(() => { const canSwitch = isStaff() && S.groups && S.groups.length > 1;
@@ -2173,9 +2208,9 @@ function shell(content, active){
       <button class="iconbtn themebtn" id="themeBtn" aria-label="Переключить тему"></button>
     </div>
   </div></div>
-  <main class="screen"><div class="wrap${_vin}">${content}</div></main>
+  <main class="screen" id="main" tabindex="-1"><div class="wrap${_vin}">${content}</div></main>
   <nav class="tabbar" aria-label="Навигация"><div class="tabbar-in">
-    ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}">${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}${k==='profile' && EmailSwitch.needsAction() ? `<span class="bdg-dot"></span>` : ''}</button>`).join('')}
+    ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}"${active===k?' aria-current="page"':''}>${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}${k==='profile' && EmailSwitch.needsAction() ? `<span class="bdg-dot"></span>` : ''}</button>`).join('')}
   </div></nav>`;
   Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
   Easter.apply(Easter.mode);
@@ -2184,7 +2219,7 @@ function shell(content, active){
   $('#brandHome').addEventListener('click', easterTap);
   const gs = $('#gSel');
   if(gs) gs.onclick = e => { e.stopPropagation(); toggleGroupMenu(); };
-  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.view = b.dataset.tab; S.orderMode = false; _userNav = true; render(); window.scrollTo(0,0); });
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.view = b.dataset.tab; S.orderMode = false; _userNav = true; render(); window.scrollTo(0,0); try{ const _m = document.getElementById('main'); if(_m) _m.focus({ preventScroll:true }); }catch(_){} });
   if(isStaff()) refreshReqBadge();
 }
 /* переключатель групп в шапке */
@@ -2341,7 +2376,7 @@ function vQueue(){
     else if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
     const ord = S.orderMode && isLeader()
       ? (window.Sortable
-        ? `<span class="qgrip" role="button" aria-label="Перетащить">⋮⋮</span>`
+        ? `<span class="qgrip" role="button" tabindex="0" aria-label="Переместить (стрелки вверх/вниз)">⋮⋮</span>`
         : `<button class="stepbtn" data-mv="${esc(p.id)}|-1" aria-label="Выше">↑</button><button class="stepbtn" data-mv="${esc(p.id)}|1" aria-label="Ниже">↓</button>`) : '';
     return `<div class="qrow${isMe ? ' me' : ''}" data-pid="${esc(p.id)}"><span class="qnum">${String(i + 1).padStart(2,'0')}</span>
       <span class="qname">${esc(p.name)}</span>${tags.join(' ')}${ord}</div>`;
@@ -2356,6 +2391,14 @@ function vQueue(){
     Duty.move(id, +d);
   });
   initQueueSort();
+  document.querySelectorAll('.qgrip').forEach(g => g.addEventListener('keydown', e => {
+    if(S.busy) return;
+    const row = g.closest('[data-pid]');
+    if(!row) return;
+    const pid = row.dataset.pid;
+    if(e.key === 'ArrowUp'){ e.preventDefault(); Duty.move(pid, -1); }
+    else if(e.key === 'ArrowDown'){ e.preventDefault(); Duty.move(pid, 1); }
+  }));
 }
 
 /* Перетаскивание очереди: ручка .qgrip, подтверждение при отпускании.
@@ -2618,12 +2661,12 @@ const VolM = {
   compose(){
     const col = this.canCollege();
     const w = sheet(`<h3>Новое событие</h3>
-      <div data-scroll style="margin-top:10px;max-height:62vh;overflow:auto;overscroll-behavior:contain">
+      <div data-scroll style="margin:10px -5px 0;padding:4px 5px 8px;max-height:62vh;overflow:auto;overscroll-behavior:contain">
       <div class="field"><label>Название</label><input class="inp" id="vmT" maxlength="120" autocomplete="off"></div>
-      <div class="field"><label>Описание (необязательно)</label><textarea class="inp" id="vmD" rows="2" maxlength="1000"></textarea></div>
-      <div class="field"><label>Дата и время начала</label><input class="inp" id="vmW" type="datetime-local"></div>
-      <div class="field"><label>Часов за участие</label><input class="inp" id="vmH" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="2"></div>
-      <div class="field"><label>Мест (пусто — без лимита)</label><input class="inp" id="vmS" type="number" inputmode="numeric" min="1" max="500"></div>
+      <div class="field"><label>Описание (необязательно)</label><textarea class="inp" id="vmD" rows="2" maxlength="1000" autocomplete="off"></textarea></div>
+      <div class="field"><label>Дата и время начала</label><input class="inp" id="vmW" type="datetime-local" autocomplete="off"></div>
+      <div class="field"><label>Часов за участие</label><input class="inp" id="vmH" type="number" autocomplete="off" inputmode="decimal" min="0" max="24" step="0.5" value="2"></div>
+      <div class="field"><label>Мест (пусто — без лимита)</label><input class="inp" id="vmS" type="number" autocomplete="off" inputmode="numeric" min="1" max="500"></div>
       ${col ? `<div class="field"><label>Для кого</label><select class="inp" id="vmG"><option value="g">Только моя группа</option><option value="c">Весь колледж</option></select></div>` : ''}
       </div>
       <div class="actions"><button class="btn btn-q" id="vmNo">Отмена</button><button class="btn btn-p" id="vmYes">Создать</button></div>`);
@@ -2776,7 +2819,7 @@ function vProfile(){
     `<button class="row" id="pfOut"><div class="grow" style="color:var(--red)">Выйти</div></button>`
   ].join('');
   shell(`
-    
+
     ${me ? `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Мои дежурства</div>
       <div class="rows"><div class="row"><div class="grow">Был(а)</div><b>${pr}</b></div>
       <div class="row"><div class="grow">Не было</div><b>${ab}</b></div>
@@ -2964,7 +3007,7 @@ const AUDIT_CATS = {
   all:   { label:'Все',      test:() => true },
   ppl:   { label:'Люди',     test:a => /^(person_|removal_|add_)/.test(a) },
   acc:   { label:'Доступ',   test:a => /^(password_reset|accounts_created|leader_|invite_|teacher_)/.test(a) },
-  sys:   { label:'Система',  test:a => /^(state_restored|group_paused|group_resumed|duty_outside_schedule|history_deleted|group_created|group_reset|queue_reordered)$/.test(a) },
+  sys:   { label:'Система',  test:a => /^(state_restored|group_paused|group_resumed|duty_outside_schedule|history_deleted|group_created|group_reset|queue_reordered|duty_started|duty_start_srv|duty_finished|debt_writeoff|data_purged)$/.test(a) },
 };
 async function renderAuditFeed(el){
   if(!el) return;
@@ -2987,7 +3030,7 @@ function paintAuditFeed(el){
   const rows = S._auditRows || [], nm = S._auditNames || new Map();
   const f = S.auditFilter || 'all';
   const cat = AUDIT_CATS[f] || AUDIT_CATS.all;
-  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', teacher_granted:'Выдан преподаватель', teacher_revoked:'Снят преподаватель', invite_created:'Приглашение создано', invite_revoked:'Приглашение отозвано', invite_accepted:'Вступление по приглашению', invite_dup_blocked:'Отклонён дубль из другой группы', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена', queue_reordered:'Очередь изменена' };
+  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', teacher_granted:'Выдан преподаватель', teacher_revoked:'Снят преподаватель', invite_created:'Приглашение создано', invite_revoked:'Приглашение отозвано', invite_accepted:'Вступление по приглашению', invite_dup_blocked:'Отклонён дубль из другой группы', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена', queue_reordered:'Очередь изменена', teacher_assigned:'Преподаватель назначен на группу', teacher_unassigned:'Преподаватель снят с группы', teacher_invited:'Преподаватель приглашён', person_restored:'Участник возвращён в группу', duty_started:'Дежурство начато', duty_start_srv:'Запуск дежурства зафиксирован', duty_finished:'Дежурство завершено', debt_writeoff:'Долг списан', data_purged:'Данные очищены' };
   const chips = Object.entries(AUDIT_CATS).map(([k, c]) =>
     `<button class="fchip${f === k ? ' on' : ''}" data-af="${k}">${c.label}</button>`).join('');
   let html = '', last = '';
