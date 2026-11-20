@@ -391,12 +391,15 @@ input::-ms-reveal,input::-ms-clear{display:none}
 /* ordo-129-fair */
 .fairbar{height:6px;border-radius:99px;background:var(--fill);overflow:hidden;margin-top:8px}
 .fairbar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
-/* ordo-130-icsqr */
-.qr-card{background:var(--bg2);border-radius:18px;padding:22px 18px;text-align:center}
-.qr-title{font-size:24px;font-weight:800;margin:8px 0 6px;letter-spacing:-.02em}
-.qr-box{width:min(260px,72vw);margin:18px auto 12px;background:#fff;border-radius:12px;padding:12px}
+/* ordo-134-qrtg: QR на дверь в стиле Telegram-карточки — белая скруглённая
+   карточка, строго ч/б, в обеих темах и при печати */
+.qr-card{background:#fff;color:#000;border-radius:32px;padding:28px 22px 26px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.22)}
+.qr-card .eyebrow,.qr-card .body2,.qr-card .tiny{color:#000}
+.qr-title{font-size:24px;font-weight:800;margin:8px 0 6px;letter-spacing:-.02em;color:#000}
+.qr-box{width:min(280px,76vw);margin:18px auto 0;background:#fff;padding:0}
 .qr-box svg{width:100%;height:auto;display:block}
-.qr-url{font-size:14px;color:var(--sec);overflow-wrap:anywhere}
+.qr-brand{font-size:26px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#000;margin:16px 0 0}
+.qr-url{font-size:14px;color:#555;overflow-wrap:anywhere}
 @media print{
   /* печать строго чёрно-белая: только #000/#fff, без топбара, таббара и кнопок */
   body{background:#fff!important;color:#000!important}
@@ -407,8 +410,10 @@ input::-ms-reveal,input::-ms-clear{display:none}
   .qr-card,.qr-card *{color:#000!important;background:#fff!important;border-color:#000!important;box-shadow:none!important}
   .qr-card{padding:0}
   .qr-title{font-size:28px}
-  .qr-box{width:320px;max-width:80vw;margin:24px auto}
-  .qr-box svg path{fill:#000!important;stroke:transparent!important}
+  .qr-box{width:320px;max-width:80vw;margin:24px auto 0}
+  /* модули и поисковики — в чёрный; белые просветы (.qr-lite: кольцо поисковика,
+     вырубка под логотип) и белая корона не трогаем, иначе код не читается */
+  .qr-box svg rect:not(.qr-lite),.qr-box svg circle:not(.qr-lite){fill:#000!important;stroke:transparent!important}
   .qr-url{font-size:16px}
 }
 </style>
@@ -1830,7 +1835,10 @@ const Fair = {
    и dutyNotes (максимум 20 последних). queue/log/current не трогаем, кроме чтения.
    Запись — только через Store.saveState() внутри run(), как остальные мутации. */
 const Check = {
-  ITEMS: [['board', 'Доска'], ['air', 'Проветривание'], ['floor', 'Полы'], ['flowers', 'Цветы']],
+  /* ordo-134: пункты по слову Дамира — 'floor' и 'board' сохранили ключи
+     (тот же смысл, старые отметки не сгорят); 'chairs' — новый ключ;
+     'air' и 'flowers' убраны вместе с пунктами */
+  ITEMS: [['floor', 'Помыли/подмели пол'], ['chairs', 'Подняли/задвинули стулья'], ['board', 'Почистили доску']],
   NOTE_MAX: 200,
   NOTES_CAP: 20,
   /* отмечать и писать могут дежурящие сейчас и староста; остальные только смотрят */
@@ -2814,7 +2822,11 @@ function vQueue(){
   }));
 }
 
-/* ---------------- QR на дверь: ссылка на главную сайта ---------------- */
+/* ---------------- QR на дверь: ссылка на главную сайта ----------------
+   ordo-134-qrtg: свой рендерер в стиле Telegram-карточки — закруглённые
+   модули (горизонтальные прогоны-«бруски»), закруглённые паттерны-поисковики,
+   чёрный круг с белой короной по центру. Уровень коррекции 'H': логотип
+   закрывает часть модулей, с 'M' код мог бы не читаться. */
 const Qr = {
   url(){ return location.origin + location.pathname; },
   /* кто дежурит сегодня: текущее дежурство, иначе первый в очереди */
@@ -2828,6 +2840,45 @@ const Qr = {
     const q = currentQueue();
     return q.length ? { label:'Далее в очереди', names:[q[0].name] } : { label:'Сегодня дежурит', names:[] };
   },
+  /* SVG QR-кода по матрице qrcode-generator: модули, поисковики, логотип */
+  svgFor(url){
+    const qr = qrcode(0, 'H');
+    qr.addData(url);
+    qr.make();
+    const n = qr.getModuleCount(), u = 10, m = 4, W = (n + m * 2) * u;
+    const X = c => (c + m) * u, Y = r => (r + m) * u;
+    const isFinder = (r, c) =>
+      (r < 8 && c < 8) || (r < 8 && c >= n - 8) || (r >= n - 8 && c < 8);
+    let s = '';
+    /* модули данных: горизонтальные прогоны соседних тёмных модулей —
+       один скруглённый брусок; соседние строки смыкаются в «блобы» */
+    const rx = (3 * u / 10).toFixed(1);
+    for(let r = 0; r < n; r++){
+      let c = 0;
+      while(c < n){
+        if(!qr.isDark(r, c) || isFinder(r, c)){ c++; continue; }
+        let c2 = c;
+        while(c2 + 1 < n && qr.isDark(r, c2 + 1) && !isFinder(r, c2 + 1)) c2++;
+        s += `<rect x="${X(c)}" y="${Y(r)}" width="${(c2 - c + 1) * u}" height="${u}" rx="${rx}"/>`;
+        c = c2 + 1;
+      }
+    }
+    /* паттерны-поисковики: скруглённое кольцо + скруглённая сердцевина */
+    const finders = [[0, 0], [0, n - 7], [n - 7, 0]];
+    for(const [fr, fc] of finders){
+      s += `<rect x="${X(fc)}" y="${Y(fr)}" width="${7 * u}" height="${7 * u}" rx="${2.2 * u}"/>`
+        + `<rect class="qr-lite" x="${X(fc) + u}" y="${Y(fr) + u}" width="${5 * u}" height="${5 * u}" rx="${1.5 * u}" fill="#fff"/>`
+        + `<rect x="${X(fc) + 2 * u}" y="${Y(fr) + 2 * u}" width="${3 * u}" height="${3 * u}" rx="${u}"/>`;
+    }
+    /* логотип по центру: белая вырубка, чёрный круг, белая корона-силуэт */
+    const cx = W / 2, cy = W / 2, R = 3.4 * u;
+    const crown = `M ${cx - 2.3 * u} ${cy + 1.1 * u} L ${cx - 2.3 * u} ${cy - 0.8 * u} L ${cx - 1.15 * u} ${cy + 0.15 * u} L ${cx} ${cy - 1.25 * u} L ${cx + 1.15 * u} ${cy + 0.15 * u} L ${cx + 2.3 * u} ${cy - 0.8 * u} L ${cx + 2.3 * u} ${cy + 1.1 * u} Z`;
+    s += `<circle class="qr-lite" cx="${cx}" cy="${cy}" r="${R + 0.7 * u}" fill="#fff"/>`
+      + `<circle cx="${cx}" cy="${cy}" r="${R}"/>`
+      + `<path class="qr-crown" fill="#fff" d="${crown}"/>`
+      + `<rect class="qr-crown" x="${cx - 2.3 * u}" y="${cy + 1.35 * u}" width="${4.6 * u}" height="${0.55 * u}" rx="${0.25 * u}" fill="#fff"/>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}" width="1024" height="1024" role="img" aria-label="QR-код со ссылкой на сайт Ordo"><rect width="${W}" height="${W}" fill="#fff"/>${s}</svg>`;
+  },
   draw(){
     const box = document.getElementById('qrBox');
     if(!box) return;
@@ -2836,11 +2887,37 @@ const Qr = {
     if(link) link.textContent = url;
     if(!window.qrcode){ box.innerHTML = '<p class="body2">QR не построился — нет связи. Откройте ссылку ниже.</p>'; toast('QR не построился — нет связи'); return; }
     try{
-      const qr = qrcode(0, 'M');
-      qr.addData(url);
-      qr.make();
-      box.innerHTML = qr.createSvgTag(8, 2);
+      box.innerHTML = Qr.svgFor(url);
     }catch(e){ box.innerHTML = '<p class="body2">QR не построился — нет связи. Откройте ссылку ниже.</p>'; toast('QR не построился — нет связи'); }
+  },
+  /* скачивание QR как PNG 1024×1024: SVG → картинка → canvas */
+  png(){
+    const svg = document.querySelector('#qrBox svg');
+    if(!svg){ toast('QR не построился — нет связи'); return; }
+    try{
+      const xml = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([xml], { type:'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width = 1024; cv.height = 1024;
+        const ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1024, 1024);
+        ctx.drawImage(img, 0, 0, 1024, 1024);
+        URL.revokeObjectURL(url);
+        cv.toBlob(b => {
+          if(!b){ toast('Не удалось сохранить PNG'); return; }
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(b);
+          a.download = 'ordo-qr.png';
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        }, 'image/png');
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); toast('Не удалось сохранить PNG'); };
+      img.src = url;
+    }catch(e){ toast('Не удалось сохранить PNG'); }
   }
 };
 function vQr(){
@@ -2852,15 +2929,18 @@ function vQr(){
       <h2 class="qr-title">Дежурства</h2>
       <p class="body2">${esc(t.label)}: <b>${esc(who)}</b></p>
       <div class="qr-box" id="qrBox" role="img" aria-label="QR-код со ссылкой на сайт Ordo"></div>
+      <div class="qr-brand">Ordo</div>
       <p class="qr-url" id="qrLink"></p>
       <p class="tiny">Наведите камеру телефона — откроется сайт Ordo.</p>
     </div>
-    <div class="actions" style="margin-top:20px">
+    <div class="actions" style="margin-top:20px;display:flex;flex-direction:column;gap:12px">
       <button class="btn btn-q" id="qrBack">Назад</button>
+      <button class="btn btn-q" id="qrPng">Скачать PNG</button>
       <button class="btn btn-p" id="qrPrint">Печать</button>
     </div>`, 'queue');
   Qr.draw();
   $('#qrBack').onclick = () => { S.view = 'queue'; render(); };
+  $('#qrPng').onclick = () => Qr.png();
   $('#qrPrint').onclick = () => window.print();
 }
 
