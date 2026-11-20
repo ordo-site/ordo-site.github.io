@@ -1123,7 +1123,7 @@ const Auth = {
       <p class="tiny" style="margin-top:10px;text-align:center">Демо: вымышленная группа, без регистрации.</p>
       <div class="foot rise" style="animation-delay:.28s">
         <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
-        <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a><span style="margin:0 10px">·</span><a href="#" id="loginSupport">Поддержка</a></p>
+        <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a><span style="margin:0 10px">·</span><a href="https://t.me/creepstyle" target="_blank" rel="noopener" id="loginSupport">Поддержка</a></p>
         <p class="tiny" style="margin-top:16px"><a href="#" id="loginDocs">Документы</a></p>
         <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
       </div>
@@ -1136,7 +1136,8 @@ const Auth = {
     $('#brandAuth').addEventListener('click', easterTap);
     $('#loginDocs').onclick = e => { e.preventDefault(); Docs.open(); };
     $('#loginForgot').onclick = e => { e.preventDefault(); Auth.forgotSheet(); };
-    $('#loginSupport').onclick = e => { e.preventDefault(); location.href = SUPPORT_URL; };
+    /* ordo-133: «Поддержка» — настоящая ссылка на Telegram @creepstyle (в href выше);
+       mailto: SUPPORT_URL в голом браузере без почтового клиента молча ничего не делал */
     const pw = $('#pw');
     $('#pwEye').onclick = e => {
       const show = pw.type === 'password';
@@ -3287,7 +3288,11 @@ function vProfile(){
       : myIdx >= 0
         ? `<div class="row"><div class="grow">Следующее дежурство</div><b>${esc(Fair.forecastText(myIdx))}</b></div>`
         : '';
-  const recent = log.slice(-10).reverse();
+  /* ordo-133: в профиле — только свои записи (та же логика подсчёта, что и в статистике выше:
+     не списание долга, своя не-sub отметка со статусом). Без «я» — журнал группы, явно подписан. */
+  const myLog = me ? log.filter(en => !en.writeoff && (en.people || []).some(it => it && it.id === me.id && !it.sub &&
+    (it.status === STATUS.PRESENT || it.status === STATUS.ABSENT || it.status === STATUS.ESCAPED))) : log;
+  const recent = myLog.slice(-10).reverse();
   const rows = [
     `<button class="row" id="pfPw"><div class="grow">Сменить пароль</div><span class="chev">›</span></button>`,
     EmailSwitch.profileRow(),
@@ -3315,7 +3320,7 @@ function vProfile(){
 
     ${me ? Achv.sectionHTML(log, me.id) : ''}
 
-    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Журнал</div>
+    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">${me ? 'Мои записи' : 'Журнал группы'}</div>
       ${recent.length ? recent.map((en) => {
         const gi = log.indexOf(en);
         const del = isStaff() ? `<button class="linkbtn danger" style="font-size:13px;padding:6px" data-hdel="${gi}" aria-label="Удалить запись">×</button>` : '';
