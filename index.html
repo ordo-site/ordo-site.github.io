@@ -2979,20 +2979,12 @@ function vQueue(){
    модули (горизонтальные прогоны-«бруски»), закруглённые паттерны-поисковики.
    ordo-135: корона из центра убрана по слову Дамира — чистый QR, центр —
    обычные модули; коррекция возвращена с 'H' на 'M' (логотип больше
-   ничего не закрывает). */
+   ничего не закрывает).
+   ordo-137: имён на карточке нет (ни в canvas, ни в DOM/печати) —
+   «Сегодня дежурит» / «Далее в очереди» протухают за день, а QR на дверь
+   вне времени: только группа, QR, ORDO, URL и подсказка. */
 const Qr = {
   url(){ return location.origin + location.pathname; },
-  /* кто дежурит сегодня: текущее дежурство, иначе первый в очереди */
-  today(){
-    const now = S.state.current;
-    if(now){
-      if((now.names || []).length) return { label:'Сегодня дежурит', names:now.names };
-      const ids = now.ids || [];
-      if(ids.length) return { label:'Сегодня дежурит', names:ids.map(id => S.people.find(p => p.id === id)?.name || '?') };
-    }
-    const q = currentQueue();
-    return q.length ? { label:'Далее в очереди', names:[q[0].name] } : { label:'Сегодня дежурит', names:[] };
-  },
   /* матрица QR-кода (qrcode-generator, коррекция 'M') — общая для SVG и PNG */
   matrix(url){
     const qr = qrcode(0, 'M');
@@ -3042,7 +3034,9 @@ const Qr = {
     }catch(e){ box.innerHTML = '<p class="body2">QR не построился — нет связи. Откройте ссылку ниже.</p>'; toast('QR не построился — нет связи'); }
   },
   /* ordo-135: отрисовка всей карточки «QR на дверь» на canvas вручную —
-     заголовок, кто дежурит, чистый QR без логотипа, подпись ORDO, URL и подсказка.
+     заголовок, чистый QR без логотипа, подпись ORDO, URL и подсказка.
+     ordo-137: имён на карточке нет — QR вне времени (просто ссылка на сайт),
+     а «Сегодня дежурит» / «Далее в очереди» протухают за день.
      Без foreignObject (ненадёжно в Safari/iOS): только canvas-примитивы
      и та же матрица, что в svgFor. Строго ч/б, квадрат 1024×1024. */
   drawCard(ctx, d){
@@ -3054,12 +3048,10 @@ const Qr = {
     ctx.fillText('Ordo · ' + (d.group || ''), cx, 92);
     ctx.fillStyle = '#000'; ctx.font = font(800, 64);
     ctx.fillText('Дежурства', cx, 168);
-    ctx.font = font(400, 32);
-    Qr.wrapLines(ctx, `${d.label}: ${d.who}`, 896).forEach((ln, i) => ctx.fillText(ln, cx, 218 + i * 42));
     /* QR: та же геометрия, что в svgFor (прогоны-«бруски», поисковики, чистый центр) */
     const qr = Qr.matrix(d.url);
     const n = qr.getModuleCount(), m = 4;
-    const qSize = 500, qx = (W - qSize) / 2, qy = 282;
+    const qSize = 560, qx = (W - qSize) / 2, qy = 220;
     const u = qSize / (n + m * 2);
     const X = c => qx + (c + m) * u, Y = r => qy + (r + m) * u;
     const isFinder = (r, c) =>
@@ -3094,18 +3086,6 @@ const Qr = {
     ctx.fillText(d.url, cx, 902);
     ctx.fillText('Наведите камеру телефона — откроется сайт Ordo.', cx, 944);
   },
-  wrapLines(ctx, text, maxW){
-    const words = String(text || '').split(/\s+/).filter(Boolean);
-    const lines = []; let cur = '';
-    for(const w of words){
-      const t = cur ? cur + ' ' + w : w;
-      if(ctx.measureText(t).width <= maxW) cur = t;
-      else { if(cur) lines.push(cur); cur = w; }
-    }
-    if(cur) lines.push(cur);
-    if(lines.length > 2){ lines.length = 2; lines[1] = lines[1].replace(/…?$/, '…'); }
-    return lines;
-  },
   /* ordo-135: карточка на странице — картинка (long-press в iOS Safari даёт
      «Сохранить изображение»). PNG строится drawCard на canvas 1024×1024,
      показывается как <img> с blob URL (fallback — data URL); если PNG
@@ -3115,15 +3095,11 @@ const Qr = {
     const card = document.getElementById('qrCard');
     if(!img || !window.qrcode) return;
     try{
-      const t = Qr.today();
       const cv = document.createElement('canvas');
       cv.width = 1024; cv.height = 1024;
       const ctx = cv.getContext('2d');
       if(!ctx) return;
-      Qr.drawCard(ctx, {
-        url:Qr.url(), group:S.group?.name || '',
-        label:t.label, who:t.names.length ? t.names.join(' + ') : 'никто не дежурит'
-      });
+      Qr.drawCard(ctx, { url:Qr.url(), group:S.group?.name || '' });
       const done = src => { img.src = src; img.style.display = 'block'; if(card) card.style.display = 'none'; };
       const fallbackDataUrl = () => { try{ done(cv.toDataURL('image/png')); }catch(_){} };
       if(cv.toBlob){
@@ -3135,14 +3111,13 @@ const Qr = {
     }catch(e){ /* DOM-карточка остаётся видимой */ }
   }
 };
+/* ordo-137: на карточке нет имён — только вневременное (группа, QR, ORDO,
+   URL, подсказка). «Сегодня дежурит» / «Далее в очереди» протухают за день. */
 function vQr(){
-  const t = Qr.today();
-  const who = t.names.length ? t.names.join(' + ') : 'никто не дежурит';
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">QR на дверь</h1></div>
     <div class="qr-card" id="qrCard">
       <div class="eyebrow">Ordo · ${esc(S.group?.name || '')}</div>
       <h2 class="qr-title">Дежурства</h2>
-      <p class="body2">${esc(t.label)}: <b>${esc(who)}</b></p>
       <div class="qr-box" id="qrBox" role="img" aria-label="QR-код со ссылкой на сайт Ordo"></div>
       <div class="qr-brand">Ordo</div>
       <p class="qr-url" id="qrLink"></p>
