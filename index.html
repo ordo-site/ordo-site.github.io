@@ -417,8 +417,8 @@ input::-ms-reveal,input::-ms-clear{display:none}
   .qr-card{padding:0}
   .qr-title{font-size:28px}
   .qr-box{width:320px;max-width:80vw;margin:24px auto 0}
-  /* модули и поисковики — в чёрный; белые просветы (.qr-lite: кольцо поисковика,
-     вырубка под логотип) и белая корона не трогаем, иначе код не читается */
+  /* модули и поисковики — в чёрный; белые просветы (.qr-lite: кольцо поисковика)
+     не трогаем, иначе код не читается */
   .qr-box svg rect:not(.qr-lite),.qr-box svg circle:not(.qr-lite){fill:#000!important;stroke:transparent!important}
   .qr-url{font-size:16px}
   /* ordo-135: при печати — DOM-карточка, картинка и подсказка не печатаются */
@@ -2960,9 +2960,10 @@ function vQueue(){
 
 /* ---------------- QR на дверь: ссылка на главную сайта ----------------
    ordo-134-qrtg: свой рендерер в стиле Telegram-карточки — закруглённые
-   модули (горизонтальные прогоны-«бруски»), закруглённые паттерны-поисковики,
-   чёрный круг с белой короной по центру. Уровень коррекции 'H': логотип
-   закрывает часть модулей, с 'M' код мог бы не читаться. */
+   модули (горизонтальные прогоны-«бруски»), закруглённые паттерны-поисковики.
+   ordo-135: корона из центра убрана по слову Дамира — чистый QR, центр —
+   обычные модули; коррекция возвращена с 'H' на 'M' (логотип больше
+   ничего не закрывает). */
 const Qr = {
   url(){ return location.origin + location.pathname; },
   /* кто дежурит сегодня: текущее дежурство, иначе первый в очереди */
@@ -2976,14 +2977,14 @@ const Qr = {
     const q = currentQueue();
     return q.length ? { label:'Далее в очереди', names:[q[0].name] } : { label:'Сегодня дежурит', names:[] };
   },
-  /* матрица QR-кода (qrcode-generator, коррекция 'H') — общая для SVG и PNG */
+  /* матрица QR-кода (qrcode-generator, коррекция 'M') — общая для SVG и PNG */
   matrix(url){
-    const qr = qrcode(0, 'H');
+    const qr = qrcode(0, 'M');
     qr.addData(url);
     qr.make();
     return qr;
   },
-  /* SVG QR-кода по матрице qrcode-generator: модули, поисковики, логотип */
+  /* SVG QR-кода по матрице qrcode-generator: модули, поисковики, чистый центр */
   svgFor(url){
     const qr = Qr.matrix(url);
     const n = qr.getModuleCount(), u = 10, m = 4, W = (n + m * 2) * u;
@@ -3011,13 +3012,6 @@ const Qr = {
         + `<rect class="qr-lite" x="${X(fc) + u}" y="${Y(fr) + u}" width="${5 * u}" height="${5 * u}" rx="${1.5 * u}" fill="#fff"/>`
         + `<rect x="${X(fc) + 2 * u}" y="${Y(fr) + 2 * u}" width="${3 * u}" height="${3 * u}" rx="${u}"/>`;
     }
-    /* логотип по центру: белая вырубка, чёрный круг, белая корона-силуэт */
-    const cx = W / 2, cy = W / 2, R = 3.4 * u;
-    const crown = `M ${cx - 2.3 * u} ${cy + 1.1 * u} L ${cx - 2.3 * u} ${cy - 0.8 * u} L ${cx - 1.15 * u} ${cy + 0.15 * u} L ${cx} ${cy - 1.25 * u} L ${cx + 1.15 * u} ${cy + 0.15 * u} L ${cx + 2.3 * u} ${cy - 0.8 * u} L ${cx + 2.3 * u} ${cy + 1.1 * u} Z`;
-    s += `<circle class="qr-lite" cx="${cx}" cy="${cy}" r="${R + 0.7 * u}" fill="#fff"/>`
-      + `<circle cx="${cx}" cy="${cy}" r="${R}"/>`
-      + `<path class="qr-crown" fill="#fff" d="${crown}"/>`
-      + `<rect class="qr-crown" x="${cx - 2.3 * u}" y="${cy + 1.35 * u}" width="${4.6 * u}" height="${0.55 * u}" rx="${0.25 * u}" fill="#fff"/>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}" width="1024" height="1024" role="img" aria-label="QR-код со ссылкой на сайт Ordo"><rect width="${W}" height="${W}" fill="#fff"/>${s}</svg>`;
   },
   draw(){
@@ -3032,7 +3026,7 @@ const Qr = {
     }catch(e){ box.innerHTML = '<p class="body2">QR не построился — нет связи. Откройте ссылку ниже.</p>'; toast('QR не построился — нет связи'); }
   },
   /* ordo-135: отрисовка всей карточки «QR на дверь» на canvas вручную —
-     заголовок, кто дежурит, QR с короной, подпись ORDO, URL и подсказка.
+     заголовок, кто дежурит, чистый QR без логотипа, подпись ORDO, URL и подсказка.
      Без foreignObject (ненадёжно в Safari/iOS): только canvas-примитивы
      и та же матрица, что в svgFor. Строго ч/б, квадрат 1024×1024. */
   drawCard(ctx, d){
@@ -3046,7 +3040,7 @@ const Qr = {
     ctx.fillText('Дежурства', cx, 168);
     ctx.font = font(400, 32);
     Qr.wrapLines(ctx, `${d.label}: ${d.who}`, 896).forEach((ln, i) => ctx.fillText(ln, cx, 218 + i * 42));
-    /* QR: та же геометрия, что в svgFor (прогоны-«бруски», поисковики, корона) */
+    /* QR: та же геометрия, что в svgFor (прогоны-«бруски», поисковики, чистый центр) */
     const qr = Qr.matrix(d.url);
     const n = qr.getModuleCount(), m = 4;
     const qSize = 500, qx = (W - qSize) / 2, qy = 282;
@@ -3076,20 +3070,6 @@ const Qr = {
       ctx.fillStyle = '#fff'; rr(X(fc) + u, Y(fr) + u, 5 * u, 5 * u, 1.5 * u);
       ctx.fillStyle = '#000'; rr(X(fc) + 2 * u, Y(fr) + 2 * u, 3 * u, 3 * u, u);
     }
-    const ccx = qx + qSize / 2, ccy = qy + qSize / 2, R = 3.4 * u;
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ccx, ccy, R + 0.7 * u, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(ccx, ccy, R, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.moveTo(ccx - 2.3 * u, ccy + 1.1 * u);
-    ctx.lineTo(ccx - 2.3 * u, ccy - 0.8 * u);
-    ctx.lineTo(ccx - 1.15 * u, ccy + 0.15 * u);
-    ctx.lineTo(ccx, ccy - 1.25 * u);
-    ctx.lineTo(ccx + 1.15 * u, ccy + 0.15 * u);
-    ctx.lineTo(ccx + 2.3 * u, ccy - 0.8 * u);
-    ctx.lineTo(ccx + 2.3 * u, ccy + 1.1 * u);
-    ctx.closePath(); ctx.fill();
-    ctx.fillRect(ccx - 2.3 * u, ccy + 1.35 * u, 4.6 * u, 0.55 * u);
     ctx.fillStyle = '#000'; ctx.font = font(800, 54);
     try{ ctx.letterSpacing = '3px'; }catch(_){}
     ctx.fillText('ORDO', cx, 856);
