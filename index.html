@@ -377,6 +377,9 @@ input::-ms-reveal,input::-ms-clear{display:none}
 .demobanner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--fill);color:var(--sec);font-size:14px;font-weight:600;border-bottom:1px solid var(--fill)}
 .demobanner-btn{flex:none;min-height:36px;padding:0 14px;border-radius:11px;border:0;background:var(--fill);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
 #loginDemo{width:100%;margin-top:12px}
+/* ordo-129-fair */
+.fairbar{height:6px;border-radius:99px;background:var(--fill);overflow:hidden;margin-top:8px}
+.fairbar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
 </style>
 </head>
 <body>
@@ -1631,6 +1634,63 @@ function statsFromLog(log, people){
   });
   return [...rows.values()].map(r => ({ ФИО:r.name, Был:r.present, 'Не было':r.absent, Сбежал:r.escaped, Всего:r.present + r.absent + r.escaped }));
 }
+
+/* ---------------- индекс справедливости + прогноз (ordo-129-fair) ----------------
+   Только чтение log/queue: ничего не пишем в БД, чистые функции от log+people. */
+const Fair = {
+  /* Распределение дежурств по активным (не на паузе) людям; writeoff и sub — не считаются,
+     как в statsFromLog. value=null, когда дежурств нет вообще. */
+  index(log, people){
+    const totals = new Map((people || []).filter(p => !p.data?.paused).map(p => [p.id, 0]));
+    (log || []).forEach(en => {
+      if(!en || !Array.isArray(en.people) || en.writeoff) return;
+      en.people.forEach(it => {
+        if(!it || it.sub || !totals.has(it.id)) return;
+        if(it.status === STATUS.PRESENT || it.status === STATUS.ABSENT || it.status === STATUS.ESCAPED) totals.set(it.id, totals.get(it.id) + 1);
+      });
+    });
+    const vals = [...totals.values()];
+    if(!vals.length) return { value:null, min:0, avg:0, max:0, n:0 };
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    if(max + min <= 0) return { value:null, min, avg, max, n:vals.length };
+    return { value:Math.round(100 * (1 - (max - min) / (max + min))), min, avg, max, n:vals.length };
+  },
+  /* «от 3 до 7, в среднем 5» */
+  rangeText(f){
+    const avg = Number.isInteger(f.avg) ? String(f.avg) : f.avg.toFixed(1).replace('.', ',');
+    return `от ${f.min} до ${f.max}, в среднем ${avg}`;
+  },
+  /* Сколько раз человек дежурил за другого. В журнале замена пишется только так:
+     Duty.finish кладёт заменяющего обычной записью, а сразу за ней — заменённого с sub:true,
+     поэтому заменяющий — это запись без sub, за которой идёт запись с sub:true. */
+  subCount(log, personId){
+    let n = 0;
+    (log || []).forEach(en => {
+      if(!en || !Array.isArray(en.people) || en.writeoff) return;
+      en.people.forEach((it, i) => {
+        if(it && it.id === personId && !it.sub && en.people[i + 1]?.sub) n++;
+      });
+    });
+    return n;
+  },
+  /* Дата N-го буднего дня, считая от завтра (сб/вс пропускаются); N = позиция в очереди (1-based).
+     posIdx — 0-based индекс из myPosition(), null — даты нет. */
+  forecast(posIdx, from){
+    if(posIdx == null || posIdx < 0) return null;
+    const d = new Date(from || new Date());
+    let left = posIdx + 1;
+    while(left > 0){ d.setDate(d.getDate() + 1); const w = d.getDay(); if(w !== 0 && w !== 6) left--; }
+    return d;
+  },
+  forecastText(posIdx, from){
+    const d = Fair.forecast(posIdx, from);
+    if(!d) return '';
+    const dm = d.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
+    const wd = d.toLocaleDateString('ru-RU', { weekday:'long' });
+    return `~${dm} (${wd})`;
+  }
+};
 const Authz = {
   async callAccounts(body){
     const { data, error } = await db.functions.invoke('ordo-accounts', { body:{ group_id:S.group.id, ...body } });
@@ -2422,8 +2482,15 @@ function vHome(){
   const meLine = meIdx >= 0
     ? `<p class="tiny" style="margin-top:22px">Вы №${meIdx + 1} в очереди</p>`
     : '';
+  /* ordo-129-fair: индекс справедливости видят все */
+  const fair = Fair.index(S.state.log, S.people);
+  const fairLine = fair.value == null
+    ? `<p class="tiny" style="margin-top:14px">Индекс справедливости: <b>—</b> · пока нет данных</p>`
+    : `<p class="tiny" style="margin-top:14px">Индекс справедливости: <b>${fair.value}</b> · ${esc(Fair.rangeText(fair))}</p>
+      <div class="fairbar" aria-hidden="true"><i style="width:${fair.value}%"></i></div>
+      <p class="tiny" style="margin-top:6px">100 — идеально ровно</p>`;
 
-  const html = `${hero}${liveMarks}${action}${nextLine}${debtLine}${meLine}`;
+  const html = `${hero}${liveMarks}${action}${nextLine}${debtLine}${meLine}${fairLine}`;
   shell(html, 'home');
   const sb = $('#startBtn'); if(sb) sb.onclick = () => { if(sb.dataset.closed) toast('Назначение доступно в будни с 8:00 до 16:30.'); else Duty.start(); };
   const fb = $('#finishBtn'); if(fb) fb.onclick = () => Duty.finish();
@@ -2881,12 +2948,29 @@ function vProfile(){
   const me = S.people.find(p => p.user_id === S.user?.id);
   const log = S.state.log || [];
   let pr = 0, ab = 0, es = 0;
-  if(me) log.forEach(en => (en.people || []).forEach(it => {
-    if(it.id !== me.id || it.sub) return;
-    if(it.status === STATUS.PRESENT) pr++;
-    else if(it.status === STATUS.ABSENT) ab++;
-    else if(it.status === STATUS.ESCAPED) es++;
-  }));
+  /* ordo-129-fair: как в statsFromLog — списания долгов (writeoff) не считаются дежурствами */
+  if(me) log.forEach(en => {
+    if(en.writeoff) return;
+    (en.people || []).forEach(it => {
+      if(it.id !== me.id || it.sub) return;
+      if(it.status === STATUS.PRESENT) pr++;
+      else if(it.status === STATUS.ABSENT) ab++;
+      else if(it.status === STATUS.ESCAPED) es++;
+    });
+  });
+  /* ordo-129-fair: вклад и прогноз — только чтение log/queue */
+  const fair = Fair.index(log, S.people);
+  const subN = me ? Fair.subCount(log, me.id) : 0;
+  const myIdx = myPosition();
+  const iOwe = me ? debtorIds().includes(me.id) : false;
+  const paused = S.group?.settings?.paused;
+  const fcLine = !me ? '' : paused
+    ? `<div class="row"><div class="grow">Следующее дежурство</div><b>очередь на паузе</b></div>`
+    : iOwe
+      ? `<div class="row"><div class="grow">Следующее дежурство</div><b>вне очереди: долг</b></div>`
+      : myIdx >= 0
+        ? `<div class="row"><div class="grow">Следующее дежурство</div><b>${esc(Fair.forecastText(myIdx))}</b></div>`
+        : '';
   const recent = log.slice(-10).reverse();
   const rows = [
     `<button class="row" id="pfPw"><div class="grow">Сменить пароль</div><span class="chev">›</span></button>`,
@@ -2903,7 +2987,14 @@ function vProfile(){
     ${me ? `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Мои дежурства</div>
       <div class="rows"><div class="row"><div class="grow">Был(а)</div><b>${pr}</b></div>
       <div class="row"><div class="grow">Не было</div><b>${ab}</b></div>
-      <div class="row"><div class="grow">Сбежал(а)</div><b>${es}</b></div></div></div>` : ''}
+      <div class="row"><div class="grow">Сбежал(а)</div><b>${es}</b></div>
+      <div class="row"><div class="grow">Всего дежурств</div><b>${pr + ab + es}</b></div>
+      <div class="row"><div class="grow">Заменял других</div><b>${subN}</b></div>
+      <div class="row"><div class="grow">Среднее время смены</div><b>—</b></div>
+      <div class="row"><div class="grow">Индекс справедливости</div><b>${fair.value == null ? '—' : fair.value}</b></div>
+      ${fcLine}</div>
+      ${fair.value == null ? '<p class="tiny" style="margin-top:8px">Индекс справедливости: пока нет данных.</p>' : `<p class="tiny" style="margin-top:8px">${esc(Fair.rangeText(fair))} · 100 — идеально ровно</p>`}
+      ${myIdx >= 0 && !paused && !iOwe ? '<p class="tiny" style="margin-top:6px">Дата сдвинется, если очередь изменится.</p>' : ''}</div>` : ''}
 
     <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Журнал</div>
       ${recent.length ? recent.map((en) => {
