@@ -279,6 +279,9 @@ button.row:active{background:var(--fill)}
 /* ---------- misc ---------- */
 .notice{border-radius:16px;padding:14px 16px;font-size:15px;background:var(--fill);color:var(--sec);margin-top:14px}
 .notice.warn{background:rgba(255,214,10,.12);color:var(--amber)}
+/* ordo-135: обрезка длинного текста показа — максимум 3 строки с многоточием;
+   раскрытие — снятием класса (см. шторку завершения) */
+.clamp3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .hidden{display:none!important}
 details.faq{border-bottom:1px solid var(--hair);padding:13px 0}
 details.faq summary{font-size:16px;font-weight:600;cursor:pointer;list-style:none}
@@ -400,6 +403,9 @@ input::-ms-reveal,input::-ms-clear{display:none}
 .qr-box svg{width:100%;height:auto;display:block}
 .qr-brand{font-size:26px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#000;margin:16px 0 0}
 .qr-url{font-size:14px;color:#555;overflow-wrap:anywhere}
+/* ordo-135: на экране карточка — картинка (long-press в iOS → «Сохранить изображение»);
+   DOM-карточка остаётся только для печати */
+.qr-img{display:none;width:100%;max-width:420px;margin:0 auto;border-radius:32px}
 @media print{
   /* печать строго чёрно-белая: только #000/#fff, без топбара, таббара и кнопок */
   body{background:#fff!important;color:#000!important}
@@ -415,6 +421,8 @@ input::-ms-reveal,input::-ms-clear{display:none}
      вырубка под логотип) и белая корона не трогаем, иначе код не читается */
   .qr-box svg rect:not(.qr-lite),.qr-box svg circle:not(.qr-lite){fill:#000!important;stroke:transparent!important}
   .qr-url{font-size:16px}
+  /* ordo-135: при печати — DOM-карточка, картинка и подсказка не печатаются */
+  .qr-img,.qr-hint{display:none!important}
 }
 </style>
 </head>
@@ -711,6 +719,17 @@ const dutyWindowOpen = () => {
   const m = (+p.hour % 24) * 60 + (+p.minute);
   return ['Mon','Tue','Wed','Thu','Fri'].includes(p.weekday) && m >= 480 && m <= 990;
 };
+/* ordo-135: лимит комментария при назначении — 300 символов (решение 20.11);
+   maxlength на поле + принудительная обрезка при сохранении (полю не доверяем) */
+const ASSIGN_COMMENT_MAX = 300;
+/* ordo-135: время дежурства (МСК). Конец смены — 16:30 (то же окно, что
+   dutyWindowOpen и .ics). Плашка «просрочено» — сразу после 16:30 в день
+   начала (или если дежурство начато в прошлый день). Автозакрытие — в 17:30:
+   в день начала после 17:30 либо при загрузке в любой следующий день —
+   дежурство не переживает следующий дежурный день, а у старосты остаётся
+   час (16:30–17:30) закрыть его вручную с отметками. */
+const DUTY_END_MIN = 990; /* 16:30 */
+const AUTO_CLOSE_MIN = 1050; /* 17:30 */
 
 /* ---------------- queue math (contract) ---------------- */
 function debtorIds(){
@@ -896,7 +915,9 @@ const Store = {
       const m = await db.from('group_members').select('group_id,role').eq('group_id', S.group.id).eq('user_id', S.user.id).maybeSingle();
       if(m.error) throw m.error;
       S.membership = m.data || { group_id:S.group.id, role:'leader' };
-      await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home'; renderAfterBoot(); return;
+      await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home';
+      try{ if(await Duty.autoCloseIfNeeded()) toast('Просроченное дежурство закрыто автоматически — отметки не подтверждены'); }catch(e){ console.warn(e); }
+      renderAfterBoot(); return;
     }
     const ms = await db.from('group_members').select('group_id,role').eq('user_id', S.user.id);
     if(ms.error) throw ms.error;
@@ -905,7 +926,9 @@ const Store = {
     const g = await db.from('groups').select('*').eq('id', S.membership.group_id).single();
     if(g.error) throw g.error;
     S.group = g.data;
-    await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home'; renderAfterBoot();
+    await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home';
+    try{ if(await Duty.autoCloseIfNeeded()) toast('Просроченное дежурство закрыто автоматически — отметки не подтверждены'); }catch(e){ console.warn(e); }
+    renderAfterBoot();
   },
   async loadGroup(){
     if(S.demo) return;
@@ -1080,6 +1103,15 @@ const Demo = {
     const p = (S.people || []).find(x => x && x.id === 'demo-p2');
     if(p) p.user_id = 'demo';
   },
+  /* ordo-135: отложенный вход — синхронный enter() в том же клике не давал
+     браузеру отрисовать :active кнопки «Посмотреть демо». Задержка 120 мс —
+     пресс успевает показаться, экран меняется уже после. Флаг _demoEnterPending
+     защищает от двойного тапа: повторный тап до срабатывания таймера игнорируется. */
+  enterSoon(){
+    if(S.demo || S._demoEnterPending) return;
+    S._demoEnterPending = true;
+    setTimeout(() => { S._demoEnterPending = false; if(!S.demo) Demo.enter(); }, 120);
+  },
   enter(){
     const { people, state } = Demo.makeData();
     Object.assign(S, {
@@ -1137,7 +1169,7 @@ const Auth = {
     document.title = 'Ordo';
     Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
     $('#loginTheme').onclick = Theme.toggle;
-    $('#loginDemo').onclick = () => Demo.enter();
+    $('#loginDemo').onclick = () => Demo.enterSoon();
     $('#brandAuth').addEventListener('click', easterTap);
     $('#loginDocs').onclick = e => { e.preventDefault(); Docs.open(); };
     $('#loginForgot').onclick = e => { e.preventDefault(); Auth.forgotSheet(); };
@@ -1423,6 +1455,12 @@ function logReorder(personId, name, from, to){
     people: []
   });
 }
+/* ordo-135: части даты/времени в МСК — чистые функции, тестируются харнессом */
+function mskParts(d){
+  const p = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})
+    .formatToParts(new Date(d)).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  return { ymd:`${p.year}-${p.month}-${p.day}`, mins:(+p.hour % 24) * 60 + (+p.minute) };
+}
 const Duty = {
   start(){
     if(S.state.current) return toast('Дежурство уже идёт');
@@ -1475,8 +1513,10 @@ const Duty = {
         const finalDebtors = ids.filter(id => dset.has(id)).length;
         if(finalDebtors > autoDebtors){ toast('В паре не больше одного должника'); return; } }
       const names = ids.map(id => S.people.find(p => p.id === id)?.name || '?');
-      const assignComment = (w.querySelector('#stComment')?.value || '').trim();
-      S.state.current = { ids, names, startedAt:new Date().toISOString(), forIds, mainIds:ids.slice(0,2), marks:Object.fromEntries(ids.map(id => [id, STATUS.PRESENT])), assignComment };
+      const assignComment = (w.querySelector('#stComment')?.value || '').trim().slice(0, ASSIGN_COMMENT_MAX);
+      /* ordo-135: снимок очереди до ротации — для точного возврата пары при отмене */
+      const queueBefore = (S.state.queue || []).slice();
+      S.state.current = { ids, names, startedAt:new Date().toISOString(), forIds, mainIds:ids.slice(0,2), marks:Object.fromEntries(ids.map(id => [id, STATUS.PRESENT])), assignComment, queueBefore };
       /* rotation: в конец уходят те, кто реально дежурит (заменивший), а заменённый остаётся на своём месте
          и дежурит следующим; приостановленные сохраняют свои места */
       {
@@ -1510,6 +1550,84 @@ const Duty = {
       w.querySelector('#frNow').onclick = () => { closeSheet(); Duty.finish({ blank:true }); };
     }, 800);
   },
+  /* ordo-135: дежурство просрочено — после 16:30 МСК в день начала
+     или начато в прошлый календарный день. Чистая функция (now — для тестов). */
+  isOverdue(c, now){
+    if(!c || !c.startedAt) return false;
+    const s = mskParts(c.startedAt), n = mskParts(now || new Date());
+    return s.ymd < n.ymd || (s.ymd === n.ymd && n.mins > DUTY_END_MIN);
+  },
+  /* ordo-135: пора автозакрывать — в день начала после 17:30 МСК
+     или при загрузке в любой следующий день. Чистая функция. */
+  shouldAutoClose(c, now){
+    if(!c || !c.startedAt) return false;
+    const s = mskParts(c.startedAt), n = mskParts(now || new Date());
+    return s.ymd < n.ymd || (s.ymd === n.ymd && n.mins >= AUTO_CLOSE_MIN);
+  },
+  /* ordo-135: автозакрытие просроченного дежурства при загрузке.
+     Священное: система НИКОГДА не выдумывает отметки — запись без people
+     (любой статус в people дал бы долг через debtorIds), counted:false,
+     флаг unconfirmed. Долг не назначается, никому ничего не засчитывается.
+     Пути дозаполнить отметки после закрытия в коде нет (finish требует
+     current) — дежурство остаётся закрытым-неподтверждённым, староста
+     уточняет у дежуривших сам. Возвращает true, если закрыло. */
+  async autoCloseIfNeeded(now){
+    if(S.demo) return false;
+    const c = S.state && S.state.current;
+    if(!c || !Duty.shouldAutoClose(c, now)) return false;
+    const names = (c.names || []).join(' + ');
+    S.state.log = S.state.log || [];
+    S.state.log.push({
+      at:new Date().toISOString(), counted:false, autoClosed:true, unconfirmed:true,
+      action:`Дежурство закрыто автоматически: ${names} — отметки не подтверждены, никому не засчитано`,
+      people:[]
+    });
+    S.state.current = null;
+    await Store.saveState();
+    await Store.audit('duty_auto_closed', { ids:c.ids || [], names:c.names || [], startedAt:c.startedAt, auto:true });
+    return true;
+  },
+  /* ordo-135: ручная отмена текущего дежурства старостой.
+     Пара возвращается на свои точные места в очереди (снимок queueBefore);
+     отметок нет, никому не засчитывается; запись — в журнал и в «События». */
+  cancel(){
+    const c = S.state.current;
+    if(!c) return;
+    if(!isLeader()) return toast('Отменить дежурство может только староста');
+    const names = (c.names || []).join(' + ') || 'дежурство';
+    confirmBox('Отменить дежурство?',
+      `«${names}» вернётся в очередь на свои места. Отметки не записываются, дежурство никому не засчитывается.`,
+      'Отменить дежурство', () => run(async () => {
+        const cur = S.state.current;
+        if(!cur) return;
+        const ids = cur.ids || [];
+        const q = (S.state.queue || []).slice();
+        const before = cur.queueBefore;
+        if(Array.isArray(before) && before.length){
+          /* точный возврат: пара — на исходные позиции из снимка,
+             остальные сохраняют относительный порядок */
+          const out = q.filter(id => !ids.includes(id));
+          ids.map(id => ({ id, i:before.indexOf(id) })).filter(x => x.i >= 0)
+            .sort((a, b) => a.i - b.i)
+            .forEach(({ id, i }) => out.splice(Math.min(i, out.length), 0, id));
+          S.state.queue = out;
+        }else{
+          /* дежурство начато до ordo-135, снимка нет: пара — в начало
+             очереди в прежнем порядке (лучшее приближение, честно) */
+          S.state.queue = ids.concat(q.filter(id => !ids.includes(id)));
+        }
+        S.state.log = S.state.log || [];
+        S.state.log.push({
+          at:new Date().toISOString(), counted:false, cancelled:true,
+          action:`Дежурство отменено: ${(cur.names || []).join(' + ')} — пара возвращена в очередь, отметки не записываются`,
+          people:[]
+        });
+        S.state.current = null;
+        await Store.saveState();
+        await Store.audit('duty_cancelled', { ids:cur.ids || [], names:cur.names || [], by:S.user?.id });
+        render(); toast('Дежурство отменено');
+      }), true);
+  },
   finish(opts){
     const c = S.state.current;
     if(!c) return;
@@ -1525,12 +1643,20 @@ const Duty = {
           <button type="button" data-m="${esc(id)}|${STATUS.ABSENT}">Не было</button>
           <button type="button" data-m="${esc(id)}|${STATUS.ESCAPED}">Сбежал</button>
         </div></div>`).join('')}</div>
-      ${c.assignComment ? `<p class="body2" style="margin-top:6px">Комментарий при назначении: ${esc(c.assignComment)}</p>` : ''}
+      ${c.assignComment ? `<p class="body2 clamp3" id="assignCommentText" style="margin-top:6px">Комментарий при назначении: ${esc(c.assignComment)}</p>
+      <button class="linkbtn" id="assignCommentMore" style="margin-top:4px">Показать полностью</button>` : ''}
       <div class="field" style="margin-top:6px"><label>Комментарий</label>
         <textarea class="inp" id="finComment" rows="2" maxlength="300" placeholder="Необязательно"></textarea></div>
       <div class="actions"><button class="btn btn-q" id="finNo">Отмена</button>
       <button class="btn btn-p" id="finYes" disabled>Записать</button></div>`);
     const yes = w.querySelector('#finYes');
+    /* ordo-135: раскрытие обрезанного комментария при назначении по тапу */
+    const acMore = w.querySelector('#assignCommentMore');
+    if(acMore) acMore.onclick = () => {
+      const t = w.querySelector('#assignCommentText');
+      const clamped = t.classList.toggle('clamp3');
+      acMore.textContent = clamped ? 'Показать полностью' : 'Свернуть';
+    };
     /* прямой вызов вместо b.click(): программный клик глушится 400мс защитой от гост-кликов */
     const pick = b => {
       const [id, st] = b.dataset.m.split('|');
@@ -1557,7 +1683,7 @@ const Duty = {
       const main = c.mainIds || c.ids.slice(0, 2);
       const counted = main.some(id => marks[id] === STATUS.PRESENT);
       const now = new Date().toISOString();
-      const finComment = w.querySelector('#finComment').value.trim();
+      const finComment = (w.querySelector('#finComment').value || '').trim().slice(0, ASSIGN_COMMENT_MAX);
       const comment = [c.assignComment || '', finComment].filter(Boolean).join(' · ');
       const words = { [STATUS.PRESENT]:'был(а)', [STATUS.ABSENT]:'не было', [STATUS.ESCAPED]:'сбежал(а)' };
       const entry = {
@@ -2736,7 +2862,8 @@ function vHome(){
       }).join('');
       if(badges) liveMarks = `<div style="margin-top:12px">${badges}</div>`;
     }
-    if(isLeader()) action = `<div style="margin-top:26px"><button class="btn btn-p" id="finishBtn">Завершить</button></div>`;
+    if(isLeader()) action = `<div style="margin-top:26px"><button class="btn btn-p" id="finishBtn">Завершить</button></div>
+      <div style="margin-top:12px"><button class="btn btn-danger-q" id="cancelBtn" style="width:100%">Отменить дежурство</button></div>`;
   }else{
     hero = `<h1 class="hero">Тихо</h1>
       <p class="body2" style="margin-top:10px">Никто не дежурит.</p>`;
@@ -2746,6 +2873,13 @@ function vHome(){
       else action = `<div style="margin-top:26px"><button class="btn btn-p" id="startBtn" data-closed="1" style="opacity:.45">Начать дежурство</button></div>`;
     }
   }
+  /* ordo-135: плашка «просрочено» — сразу после 16:30 МСК в день начала.
+     Старосте — с действием «Завершить», остальным — только факт
+     (не dismissible-шум: баннер виден всем, кнопка — только старосте). */
+  const overdue = now && Duty.isOverdue(now);
+  const overdueHtml = !overdue ? '' : isLeader()
+    ? `<div class="notice warn" role="alert">Дежурство просрочено: смена закончилась в 16:30. Завершите его и отметьте, кто был. <button class="linkbtn" id="overdueFinish">Завершить →</button></div>`
+    : `<div class="notice warn">Дежурство просрочено: смена закончилась в 16:30.</div>`;
   const nextLine = next.length
     ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis">Далее: <b>${next.map(p => esc(shortName(p))).join(', ')}</b> →</button>` : '';
   const debtLine = dnames.length
@@ -2763,11 +2897,13 @@ function vHome(){
       <p class="tiny" style="margin-top:6px">100 — идеально ровно</p>`;
 
   const checkHtml = now ? Check.sectionHTML(now) : '';
-  const html = `${hero}${liveMarks}${checkHtml}${action}${nextLine}${debtLine}${meLine}${fairLine}`;
+  const html = `${hero}${overdueHtml}${liveMarks}${checkHtml}${action}${nextLine}${debtLine}${meLine}${fairLine}`;
   shell(html, 'home');
   Check.bind(now);
   const sb = $('#startBtn'); if(sb) sb.onclick = () => { if(sb.dataset.closed) toast('Назначение доступно в будни с 8:00 до 16:30.'); else Duty.start(); };
   const fb = $('#finishBtn'); if(fb) fb.onclick = () => Duty.finish();
+  const cb = $('#cancelBtn'); if(cb) cb.onclick = () => Duty.cancel();
+  const ob = $('#overdueFinish'); if(ob) ob.onclick = () => Duty.finish();
   document.querySelectorAll('[data-live] button').forEach(b => b.onclick = () => {
     const pid = b.closest('[data-live]').dataset.live;
     const st = b.dataset.s;
@@ -2840,11 +2976,16 @@ const Qr = {
     const q = currentQueue();
     return q.length ? { label:'Далее в очереди', names:[q[0].name] } : { label:'Сегодня дежурит', names:[] };
   },
-  /* SVG QR-кода по матрице qrcode-generator: модули, поисковики, логотип */
-  svgFor(url){
+  /* матрица QR-кода (qrcode-generator, коррекция 'H') — общая для SVG и PNG */
+  matrix(url){
     const qr = qrcode(0, 'H');
     qr.addData(url);
     qr.make();
+    return qr;
+  },
+  /* SVG QR-кода по матрице qrcode-generator: модули, поисковики, логотип */
+  svgFor(url){
+    const qr = Qr.matrix(url);
     const n = qr.getModuleCount(), u = 10, m = 4, W = (n + m * 2) * u;
     const X = c => (c + m) * u, Y = r => (r + m) * u;
     const isFinder = (r, c) =>
@@ -2890,34 +3031,112 @@ const Qr = {
       box.innerHTML = Qr.svgFor(url);
     }catch(e){ box.innerHTML = '<p class="body2">QR не построился — нет связи. Откройте ссылку ниже.</p>'; toast('QR не построился — нет связи'); }
   },
-  /* скачивание QR как PNG 1024×1024: SVG → картинка → canvas */
-  png(){
-    const svg = document.querySelector('#qrBox svg');
-    if(!svg){ toast('QR не построился — нет связи'); return; }
+  /* ordo-135: отрисовка всей карточки «QR на дверь» на canvas вручную —
+     заголовок, кто дежурит, QR с короной, подпись ORDO, URL и подсказка.
+     Без foreignObject (ненадёжно в Safari/iOS): только canvas-примитивы
+     и та же матрица, что в svgFor. Строго ч/б, квадрат 1024×1024. */
+  drawCard(ctx, d){
+    const W = 1024, cx = W / 2;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, W);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const font = (w, px) => `${w} ${px}px -apple-system, system-ui, sans-serif`;
+    ctx.fillStyle = '#555'; ctx.font = font(600, 28);
+    ctx.fillText('Ordo · ' + (d.group || ''), cx, 92);
+    ctx.fillStyle = '#000'; ctx.font = font(800, 64);
+    ctx.fillText('Дежурства', cx, 168);
+    ctx.font = font(400, 32);
+    Qr.wrapLines(ctx, `${d.label}: ${d.who}`, 896).forEach((ln, i) => ctx.fillText(ln, cx, 218 + i * 42));
+    /* QR: та же геометрия, что в svgFor (прогоны-«бруски», поисковики, корона) */
+    const qr = Qr.matrix(d.url);
+    const n = qr.getModuleCount(), m = 4;
+    const qSize = 500, qx = (W - qSize) / 2, qy = 282;
+    const u = qSize / (n + m * 2);
+    const X = c => qx + (c + m) * u, Y = r => qy + (r + m) * u;
+    const isFinder = (r, c) =>
+      (r < 8 && c < 8) || (r < 8 && c >= n - 8) || (r >= n - 8 && c < 8);
+    const rr = (x, y, w, h, r) => {
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+      ctx.fill();
+    };
+    ctx.fillStyle = '#000';
+    const rx = 3 * u / 10;
+    for(let r = 0; r < n; r++){
+      let c = 0;
+      while(c < n){
+        if(!qr.isDark(r, c) || isFinder(r, c)){ c++; continue; }
+        let c2 = c;
+        while(c2 + 1 < n && qr.isDark(r, c2 + 1) && !isFinder(r, c2 + 1)) c2++;
+        rr(X(c), Y(r), (c2 - c + 1) * u, u, rx);
+        c = c2 + 1;
+      }
+    }
+    for(const [fr, fc] of [[0, 0], [0, n - 7], [n - 7, 0]]){
+      rr(X(fc), Y(fr), 7 * u, 7 * u, 2.2 * u);
+      ctx.fillStyle = '#fff'; rr(X(fc) + u, Y(fr) + u, 5 * u, 5 * u, 1.5 * u);
+      ctx.fillStyle = '#000'; rr(X(fc) + 2 * u, Y(fr) + 2 * u, 3 * u, 3 * u, u);
+    }
+    const ccx = qx + qSize / 2, ccy = qy + qSize / 2, R = 3.4 * u;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ccx, ccy, R + 0.7 * u, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(ccx, ccy, R, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(ccx - 2.3 * u, ccy + 1.1 * u);
+    ctx.lineTo(ccx - 2.3 * u, ccy - 0.8 * u);
+    ctx.lineTo(ccx - 1.15 * u, ccy + 0.15 * u);
+    ctx.lineTo(ccx, ccy - 1.25 * u);
+    ctx.lineTo(ccx + 1.15 * u, ccy + 0.15 * u);
+    ctx.lineTo(ccx + 2.3 * u, ccy - 0.8 * u);
+    ctx.lineTo(ccx + 2.3 * u, ccy + 1.1 * u);
+    ctx.closePath(); ctx.fill();
+    ctx.fillRect(ccx - 2.3 * u, ccy + 1.35 * u, 4.6 * u, 0.55 * u);
+    ctx.fillStyle = '#000'; ctx.font = font(800, 54);
+    try{ ctx.letterSpacing = '3px'; }catch(_){}
+    ctx.fillText('ORDO', cx, 856);
+    try{ ctx.letterSpacing = '0px'; }catch(_){}
+    ctx.fillStyle = '#555'; ctx.font = font(400, 26);
+    ctx.fillText(d.url, cx, 902);
+    ctx.fillText('Наведите камеру телефона — откроется сайт Ordo.', cx, 944);
+  },
+  wrapLines(ctx, text, maxW){
+    const words = String(text || '').split(/\s+/).filter(Boolean);
+    const lines = []; let cur = '';
+    for(const w of words){
+      const t = cur ? cur + ' ' + w : w;
+      if(ctx.measureText(t).width <= maxW) cur = t;
+      else { if(cur) lines.push(cur); cur = w; }
+    }
+    if(cur) lines.push(cur);
+    if(lines.length > 2){ lines.length = 2; lines[1] = lines[1].replace(/…?$/, '…'); }
+    return lines;
+  },
+  /* ordo-135: карточка на странице — картинка (long-press в iOS Safari даёт
+     «Сохранить изображение»). PNG строится drawCard на canvas 1024×1024,
+     показывается как <img> с blob URL (fallback — data URL); если PNG
+     построить не удалось, на экране остаётся DOM-карточка. */
+  renderImg(){
+    const img = document.getElementById('qrImg');
+    const card = document.getElementById('qrCard');
+    if(!img || !window.qrcode) return;
     try{
-      const xml = new XMLSerializer().serializeToString(svg);
-      const blob = new Blob([xml], { type:'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => {
-        const cv = document.createElement('canvas');
-        cv.width = 1024; cv.height = 1024;
-        const ctx = cv.getContext('2d');
-        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1024, 1024);
-        ctx.drawImage(img, 0, 0, 1024, 1024);
-        URL.revokeObjectURL(url);
+      const t = Qr.today();
+      const cv = document.createElement('canvas');
+      cv.width = 1024; cv.height = 1024;
+      const ctx = cv.getContext('2d');
+      if(!ctx) return;
+      Qr.drawCard(ctx, {
+        url:Qr.url(), group:S.group?.name || '',
+        label:t.label, who:t.names.length ? t.names.join(' + ') : 'никто не дежурит'
+      });
+      const done = src => { img.src = src; img.style.display = 'block'; if(card) card.style.display = 'none'; };
+      const fallbackDataUrl = () => { try{ done(cv.toDataURL('image/png')); }catch(_){} };
+      if(cv.toBlob){
         cv.toBlob(b => {
-          if(!b){ toast('Не удалось сохранить PNG'); return; }
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(b);
-          a.download = 'ordo-qr.png';
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+          if(!b){ fallbackDataUrl(); return; }
+          try{ done(URL.createObjectURL(b)); }catch(_){ fallbackDataUrl(); }
         }, 'image/png');
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); toast('Не удалось сохранить PNG'); };
-      img.src = url;
-    }catch(e){ toast('Не удалось сохранить PNG'); }
+      }else fallbackDataUrl();
+    }catch(e){ /* DOM-карточка остаётся видимой */ }
   }
 };
 function vQr(){
@@ -2933,14 +3152,15 @@ function vQr(){
       <p class="qr-url" id="qrLink"></p>
       <p class="tiny">Наведите камеру телефона — откроется сайт Ordo.</p>
     </div>
+    <img id="qrImg" class="qr-img" alt="Карточка Ordo с QR-кодом — удерживайте, чтобы сохранить">
+    <p class="tiny qr-hint" style="margin-top:14px;text-align:center">Удерживайте карточку, чтобы сохранить её как картинку.</p>
     <div class="actions" style="margin-top:20px;display:flex;flex-direction:column;gap:12px">
       <button class="btn btn-q" id="qrBack">Назад</button>
-      <button class="btn btn-q" id="qrPng">Скачать PNG</button>
       <button class="btn btn-p" id="qrPrint">Печать</button>
     </div>`, 'queue');
   Qr.draw();
+  Qr.renderImg();
   $('#qrBack').onclick = () => { S.view = 'queue'; render(); };
-  $('#qrPng').onclick = () => Qr.png();
   $('#qrPrint').onclick = () => window.print();
 }
 
@@ -3409,7 +3629,7 @@ function vProfile(){
         <span class="tiny">${esc(fmt(en.at))}</span>
         ${del}</div>`;
         return `<div class="hrow"><div class="grow"><b>${esc(en.counted ? 'Засчитано' : 'Не засчитано')}</b>
-        <div class="sub" style="font-size:14px;color:var(--sec);margin-top:2px">${esc(en.action || '')}</div></div>
+        <div class="sub clamp3" style="font-size:14px;color:var(--sec);margin-top:2px">${esc(en.action || '')}</div></div>
         <span class="tiny">${esc(fmt(en.at))}</span>
         ${del}</div>`;
       }).join('')
