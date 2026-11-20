@@ -3052,7 +3052,9 @@ const Qr = {
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     const font = (w, px) => `${w} ${px}px -apple-system, system-ui, sans-serif`;
     ctx.fillStyle = '#555'; ctx.font = font(600, 28);
-    ctx.fillText('Ordo · ' + (d.group || ''), cx, 92);
+    /* ordo-139: шапка — просто «Ordo», без группы: QR ведёт на главную
+       сайта, а не в группу, и название группы сверху вводило в заблуждение */
+    ctx.fillText('Ordo', cx, 92);
     ctx.fillStyle = '#000'; ctx.font = font(800, 64);
     ctx.fillText('Дежурства', cx, 168);
     /* QR: та же геометрия, что в svgFor (прогоны-«бруски», поисковики, чистый центр) */
@@ -3106,7 +3108,7 @@ const Qr = {
       cv.width = 1024; cv.height = 1024;
       const ctx = cv.getContext('2d');
       if(!ctx) return;
-      Qr.drawCard(ctx, { url:Qr.url(), group:S.group?.name || '' });
+      Qr.drawCard(ctx, { url:Qr.url() });
       const done = src => { img.src = src; img.style.display = 'block'; if(card) card.style.display = 'none'; };
       const fallbackDataUrl = () => { try{ done(cv.toDataURL('image/png')); }catch(_){} };
       if(cv.toBlob){
@@ -3118,12 +3120,14 @@ const Qr = {
     }catch(e){ /* DOM-карточка остаётся видимой */ }
   }
 };
-/* ordo-137: на карточке нет имён — только вневременное (группа, QR, ORDO,
-   URL, подсказка). «Сегодня дежурит» / «Далее в очереди» протухают за день. */
+/* ordo-137: на карточке нет имён — только вневременное (QR, ORDO,
+   URL, подсказка). «Сегодня дежурит» / «Далее в очереди» протухают за день.
+   ordo-139: и группы нет — шапка просто «Ordo»: QR ведёт на главную сайта,
+   а не в группу. */
 function vQr(){
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">QR на дверь</h1></div>
     <div class="qr-card" id="qrCard">
-      <div class="eyebrow">Ordo · ${esc(S.group?.name || '')}</div>
+      <div class="eyebrow">Ordo</div>
       <h2 class="qr-title">Дежурства</h2>
       <div class="qr-box" id="qrBox" role="img" aria-label="QR-код со ссылкой на сайт Ordo"></div>
       <div class="qr-brand">Ordo</div>
