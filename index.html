@@ -373,6 +373,10 @@ input::-ms-reveal,input::-ms-clear{display:none}
   .fchip:hover{border-color:var(--sec);color:var(--text)}
   .gmenu button:hover{background:var(--fill)}
 }
+/* ordo-128-demo */
+.demobanner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--fill);color:var(--sec);font-size:14px;font-weight:600;border-bottom:1px solid var(--fill)}
+.demobanner-btn{flex:none;min-height:36px;padding:0 14px;border-radius:11px;border:0;background:var(--fill);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
+#loginDemo{width:100%;margin-top:12px}
 </style>
 </head>
 <body>
@@ -431,7 +435,7 @@ function celebrate(){
 }
 function fail(e){ console.error(e); toast(authErrorMessage(e)); }
 
-const S = { user:null, profile:null, group:null, groups:[], membership:null, people:[], state:{}, stateVer:null, view:'home', orderMode:false, fromCache:false, busy:false };
+const S = { user:null, profile:null, group:null, groups:[], membership:null, people:[], state:{}, stateVer:null, view:'home', orderMode:false, fromCache:false, busy:false, demo:false };
 let _userNav = false; /* true once the user picks a tab during boot: boot must not reset view to home */
 
 /* ---------------- theme ---------------- */
@@ -700,6 +704,7 @@ function groupSort(a, b){
 }
 const Store = {
   async boot(){
+    if(S.demo){ render(); return; }
     _userNav = false;
     try{
       const { data:{ session } } = await db.auth.getSession();
@@ -776,6 +781,7 @@ const Store = {
     await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home'; renderAfterBoot();
   },
   async loadGroup(){
+    if(S.demo) return;
     const gid = S.group.id;
     const [p, s, m] = await Promise.all([
       db.from('people').select('id,group_id,user_id,name,active,data,created_at,claimed_at').eq('group_id', gid).eq('active', true).order('created_at'),
@@ -808,6 +814,7 @@ const Store = {
     Store.saveCache();
   },
   saveCache(){
+    if(S.demo) return;
     try{
       localStorage.setItem('ordo-cache-' + S.user.id, JSON.stringify({
         profile:S.profile, group:S.group, membership:S.membership,
@@ -817,6 +824,7 @@ const Store = {
     }catch(_){}
   },
   async saveState(){
+    if(S.demo) return;
     if(S.fromCache){ await Store.loadGroup(); throw new Error('Данные обновились. Повторите действие.'); }
     S.state.updatedAt = new Date().toLocaleString('ru-RU');
     let q = db.from('group_state').update({ state:S.state, updated_by:S.user.id }).eq('group_id', S.group.id);
@@ -828,9 +836,11 @@ const Store = {
     throw new Error('Данные изменил другой человек. Экран обновлён — повторите действие.');
   },
   async audit(action, payload = {}){
+    if(S.demo) return;
     try{ await db.from('audit_log').insert({ group_id:S.group.id, actor_id:S.user.id, action, payload }); }catch(e){ console.warn(e); }
   },
   subscribe(){
+    if(S.demo) return;
     if(S._ch){ db.removeChannel(S._ch).catch(()=>{}); S._ch = null; }
     if(!S.group?.id) return;
     const gid = S.group.id;
@@ -850,6 +860,7 @@ const Store = {
     Store.pres();
   },
   async checkGroupGone(){ /* group deleted by admin while open: reset cleanly instead of freezing */
+    if(S.demo) return;
     if(!S.group?.id) return;
     const g = await db.from('groups').select('id').eq('id', S.group.id).maybeSingle();
     if(g.error || g.data) return; /* alive (or unknown): don't touch */
@@ -885,6 +896,76 @@ function authLinkType(hash){
 }
 function emailSwitchOutcome(userEmail, newEmail){ return userEmail === newEmail ? 'applied' : 'pending'; }
 
+/* ---------------- demo mode (ordo-128-demo): purely client-side, no Supabase ---------------- */
+const Demo = {
+  /* Вымышленные студенты демо-группы. user_id нет ни у кого: гость — не участник очереди. */
+  makeData(){
+    const names = ['Иванов Иван', 'Петрова Анна', 'Смирнов Артём', 'Кузнецова Мария', 'Соколов Дмитрий', 'Попова Екатерина', 'Лебедев Никита', 'Новикова Ольга', 'Морозов Сергей'];
+    const now = Date.now();
+    const people = names.map((name, i) => ({
+      id:'demo-p' + (i + 1), group_id:'demo', user_id:null, name, active:true, data:{},
+      created_at:new Date(now - (30 - i) * 864e5).toISOString()
+    }));
+    const queue = people.map(p => p.id);
+    /* Журнал за последние 3 недели: пары дежурят по очереди, статусы смешанные.
+       Последняя отметка каждого определяет долг (debtorIds): двое остаются должниками. */
+    const dayName = d => d.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
+    const pairs = [[0,1],[2,3],[4,5],[6,7],[8,0],[1,2],[3,4],[5,6],[7,8],[0,2],[4,6],[1,5],[3,8],[6,0]];
+    const stats = [
+      [STATUS.PRESENT, STATUS.PRESENT], [STATUS.PRESENT, STATUS.ABSENT], [STATUS.PRESENT, STATUS.PRESENT],
+      [STATUS.ABSENT, STATUS.PRESENT], [STATUS.PRESENT, STATUS.ESCAPED], [STATUS.PRESENT, STATUS.PRESENT],
+      [STATUS.ESCAPED, STATUS.PRESENT], [STATUS.PRESENT, STATUS.PRESENT], [STATUS.PRESENT, STATUS.ABSENT],
+      [STATUS.PRESENT, STATUS.PRESENT], [STATUS.ABSENT, STATUS.PRESENT], [STATUS.PRESENT, STATUS.PRESENT],
+      [STATUS.PRESENT, STATUS.ESCAPED], [STATUS.PRESENT, STATUS.ABSENT]
+    ];
+    const daysAgo = [20, 19, 17, 16, 14, 13, 11, 10, 8, 7, 6, 4, 3, 1];
+    const log = pairs.map(([a, b], i) => {
+      const d = new Date(now - daysAgo[i] * 864e5);
+      d.setHours(9, 0, 0, 0);
+      const [sa, sb] = stats[i];
+      const counted = sa === STATUS.PRESENT || sb === STATUS.PRESENT;
+      return {
+        at:d.toISOString(), counted,
+        action:'Дежурство ' + dayName(d),
+        comment:'',
+        people:[{ id:queue[a], status:sa }, { id:queue[b], status:sb }]
+      };
+    });
+    const startedAt = new Date(now - 3600e3).toISOString();
+    const current = {
+      ids:[queue[0], queue[1]], names:[names[0], names[1]], startedAt,
+      forIds:{}, mainIds:[queue[0], queue[1]],
+      marks:{ [queue[0]]:STATUS.PRESENT, [queue[1]]:STATUS.PRESENT },
+      assignComment:''
+    };
+    return { people, state:{ queue, log, current } };
+  },
+  enter(){
+    const { people, state } = Demo.makeData();
+    Object.assign(S, {
+      demo:true,
+      user:{ id:'demo', email:'demo@ordo', email_confirmed_at:new Date().toISOString() },
+      profile:{ role:'student', display_name:'Гость (демо)' },
+      group:{ id:'demo', name:'3СА24Н · демо' },
+      groups:[], membership:{ group_id:'demo', role:'student' },
+      memberRoles:{}, people, state, stateVer:null,
+      view:'home', orderMode:false, fromCache:false, busy:false,
+      _wasCached:false, _cacheSig:null, _reqN:null, teacherGroups:undefined
+    });
+    render();
+  },
+  exit(){
+    Object.assign(S, {
+      demo:false,
+      user:null, profile:null, group:null, groups:[], membership:null,
+      memberRoles:{}, people:[], state:{}, stateVer:null,
+      view:'home', orderMode:false, fromCache:false, busy:false,
+      _wasCached:false, _cacheSig:null, _reqN:null, teacherGroups:undefined
+    });
+    Auth.login();
+  }
+};
+
 /* ---------------- auth ---------------- */
 const Auth = {
   login(){
@@ -902,6 +983,8 @@ const Auth = {
           <button type="button" class="eyebtn" id="pwEye" aria-label="Показать пароль" tabindex="-1">${ICON.eye}</button></div></div>
         <button class="btn btn-p" id="loginBtn" type="submit" style="margin-top:6px">Войти</button>
       </form>
+      <button class="btn btn-q" id="loginDemo" type="button">Посмотреть демо</button>
+      <p class="tiny" style="margin-top:10px;text-align:center">Демо: вымышленная группа, без регистрации.</p>
       <div class="foot rise" style="animation-delay:.28s">
         <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
         <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a><span style="margin:0 10px">·</span><a href="#" id="loginSupport">Поддержка</a></p>
@@ -913,6 +996,7 @@ const Auth = {
     document.title = 'Ordo';
     Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
     $('#loginTheme').onclick = Theme.toggle;
+    $('#loginDemo').onclick = () => Demo.enter();
     $('#brandAuth').addEventListener('click', easterTap);
     $('#loginDocs').onclick = e => { e.preventDefault(); Docs.open(); };
     $('#loginForgot').onclick = e => { e.preventDefault(); Auth.forgotSheet(); };
@@ -950,6 +1034,7 @@ const Auth = {
     });
   },
   async logout(){
+    if(S.demo){ Demo.exit(); return; }
     try{ localStorage.removeItem('ordo-cache-' + S.user?.id); }catch(_){}
     if(S._ch){ try{ await db.removeChannel(S._ch); }catch(_){} S._ch = null; }
     if(S._pr){ try{ await S._pr.untrack(); await db.removeChannel(S._pr); }catch(_){} S._pr = null; }
@@ -959,6 +1044,7 @@ const Auth = {
     Auth.login();
   },
   changePassword(){
+    if(S.demo){ toast('В демо смена пароля недоступна'); return; }
     sheet(`<h3>Новый пароль</h3><p class="body2" style="margin-top:6px">Минимум 8 символов.</p>
       <div class="field" style="margin-top:14px"><label>Пароль</label>
       <div class="pwbox"><input class="inp" id="npw" type="password" autocomplete="new-password">
@@ -2017,6 +2103,7 @@ const EmailSwitch = {
     return `<button class="row" id="pfEmail"><div class="grow">Почта подтверждена<div class="sub">${esc(S.user?.email || '')}</div></div><span class="bdg-inrow ok"></span><span class="chev">›</span></button>`;
   },
   openConfirmSheet(){
+    if(S.demo){ toast('В демо привязка почты недоступна'); return; }
     const st = this.status();
     const addr = st === 'pending' ? this.pendingEmail() : (S.user?.email || '');
     const w = sheet(`<h3>Подтверждение почты</h3>
@@ -2036,6 +2123,7 @@ const EmailSwitch = {
     };
   },
   openSheet(change){
+    if(S.demo){ toast('В демо привязка почты недоступна'); return; }
     const cur = S.user?.email || '';
     const w = sheet(`<h3>${change ? 'Сменить почту' : 'Вход по почте'}</h3>
       <p class="body2" style="margin-top:8px">${change
@@ -2197,6 +2285,7 @@ function shell(content, active){
       <button class="iconbtn themebtn" id="themeBtn" aria-label="Переключить тему"></button>
     </div>
   </div></div>
+  ${S.demo ? `<div class="demobanner"><span>Демо-режим · данные вымышлены</span><button class="demobanner-btn" id="demoExit" type="button">Выйти из демо</button></div>` : ''}
   <main class="screen" id="main" tabindex="-1"><div class="wrap${_vin}">${content}</div></main>
   <nav class="tabbar" aria-label="Навигация"><div class="tabbar-in">
     ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}"${active===k?' aria-current="page"':''}>${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}${k==='profile' && EmailSwitch.needsAction() ? `<span class="bdg-dot"></span>` : ''}</button>`).join('')}
@@ -2204,6 +2293,7 @@ function shell(content, active){
   Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
   Easter.apply(Easter.mode);
   $('#themeBtn').onclick = Theme.toggle;
+  const _demoExit = $('#demoExit'); if(_demoExit) _demoExit.onclick = () => Demo.exit();
   $('#brandHome').onclick = () => { S.view = 'home'; render(); };
   $('#brandHome').addEventListener('click', easterTap);
   const gs = $('#gSel');
@@ -2555,6 +2645,7 @@ const Vol = {
   msg: { slots_full:'Мест больше нет', event_started:'Событие уже началось', event_closed:'Запись закрыта', forbidden:'Нет доступа к этому событию', event_not_found:'Событие не найдено', not_authenticated:'Войдите заново' },
   err(e){ const m = String((e && e.message) || e); for(const k in this.msg) if(m.includes(k)) return this.msg[k]; return authErrorMessage(e); },
   async load(){
+    if(S.demo) return { events:[], mine:{} };
     const [ev, su] = await Promise.all([
       db.from('volunteer_events').select('*').eq('closed', false).gte('starts_at', new Date().toISOString()).order('starts_at'),
       db.from('volunteer_signups').select('event_id,status').eq('user_id', S.user.id)
@@ -2565,8 +2656,8 @@ const Vol = {
     (su.data || []).forEach(x => { mine[x.event_id] = x.status; });
     return { events: ev.data || [], mine };
   },
-  async signup(id){ const r = await db.rpc('volunteer_signup', { p_event:id }); if(r.error) throw r.error; return r.data; },
-  async cancel(id){ const r = await db.rpc('volunteer_cancel', { p_event:id }); if(r.error) throw r.error; }
+  async signup(id){ if(S.demo) throw new Error('В демо запись недоступна'); const r = await db.rpc('volunteer_signup', { p_event:id }); if(r.error) throw r.error; return r.data; },
+  async cancel(id){ if(S.demo) throw new Error('В демо запись недоступна'); const r = await db.rpc('volunteer_cancel', { p_event:id }); if(r.error) throw r.error; }
 };
 const VOL_ST = { pending:['Ожидает','amber'], approved:['Подтверждено','green'], rejected:['Отклонено','red'], attended:['Был(а)','green'], absent:['Не был(а)','red'] };
 async function vVolunteer(){
@@ -3121,6 +3212,7 @@ if(!window.supabase){
     <p class="body2">Не загрузилась библиотека Supabase. Проверьте интернет и обновите страницу.</p></div></div>`;
 }else{
   db.auth.onAuthStateChange((ev, session) => {
+    if(S.demo) return;
     if(ev === 'SIGNED_OUT'){ Object.assign(S, { user:null, profile:null, group:null, view:'home', _lastPw:null }); Auth.login(); }
     else if(ev === 'SIGNED_IN' && session && !S.group){ setTimeout(() => Store.boot().catch(fail), 0); }
   });
@@ -3185,6 +3277,7 @@ function initPTR(){
     y0 = null; pulling = false; dy = 0;
     if(!doIt){ el.style.transform = ''; el.style.boxShadow = 'none'; return; }
     el.style.transform = 'translate(-50%,0)';
+    if(S.demo){ el.style.transform = ''; el.style.boxShadow = 'none'; toast('В демо обновление не нужно'); return; }
     const v = S.view;
     run(() => Store.loadUser()).then(() => { S.view = v; render(); toast('Обновлено'); el.style.transform = ''; el.style.boxShadow = 'none'; checkVersion(false); });
   });
