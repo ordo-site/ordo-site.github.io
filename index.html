@@ -377,6 +377,17 @@ input::-ms-reveal,input::-ms-clear{display:none}
 .demobanner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--fill);color:var(--sec);font-size:14px;font-weight:600;border-bottom:1px solid var(--fill)}
 .demobanner-btn{flex:none;min-height:36px;padding:0 14px;border-radius:11px;border:0;background:var(--fill);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
 #loginDemo{width:100%;margin-top:12px}
+/* ordo-131-check */
+.check-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--fill);cursor:pointer}
+.check-row:last-child{border-bottom:0}
+.check-row input[type="checkbox"]{width:22px;height:22px;accent-color:var(--accent);flex:none;margin:0}
+.check-row input[type="checkbox"]:disabled{cursor:default}
+.check-row input[type="checkbox"]:disabled + span{color:var(--ter)}
+.check-row span{font-size:16px}
+.achv-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.achv-chip{display:inline-flex;align-items:center;font-size:13px;font-weight:600;padding:7px 12px;border-radius:999px;white-space:normal}
+.achv-chip.earned{background:var(--accent-soft);color:var(--accent)}
+.achv-chip.locked{background:var(--fill);color:var(--ter)}
 /* ordo-129-fair */
 .fairbar{height:6px;border-radius:99px;background:var(--fill);overflow:hidden;margin-top:8px}
 .fairbar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
@@ -1790,6 +1801,125 @@ const Fair = {
     return `~${dm} (${wd})`;
   }
 };
+/* ---------------- ordo-131: чек-лист дежурства + заметки (feat 6) ----------------
+   Хранение — только новые ключи S.state: dutyCheck (по startedAt дежурства)
+   и dutyNotes (максимум 20 последних). queue/log/current не трогаем, кроме чтения.
+   Запись — только через Store.saveState() внутри run(), как остальные мутации. */
+const Check = {
+  ITEMS: [['board', 'Доска'], ['air', 'Проветривание'], ['floor', 'Полы'], ['flowers', 'Цветы']],
+  NOTE_MAX: 200,
+  NOTES_CAP: 20,
+  /* отмечать и писать могут дежурящие сейчас и староста; остальные только смотрят */
+  canEdit(){
+    const c = S.state.current;
+    if(!c) return false;
+    if(isLeader()) return true;
+    const me = S.people.find(p => p.user_id === S.user?.id);
+    return !!(me && (c.ids || []).includes(me.id));
+  },
+  get(key){ return (S.state.dutyCheck || {})[key] || { items: {} }; },
+  sectionHTML(now){
+    const key = now.startedAt;
+    const items = Check.get(key).items || {};
+    const editable = Check.canEdit();
+    const notes = (S.state.dutyNotes || []).slice(-3).reverse();
+    return `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Чек-лист дежурства</div>
+      <div class="rows" style="padding:0 16px">${Check.ITEMS.map(([k, label]) =>
+        `<label class="check-row"><input type="checkbox" data-check="${k}"${items[k] ? ' checked' : ''}${editable ? '' : ' disabled'}><span>${esc(label)}</span></label>`).join('')}</div>
+      <div class="eyebrow" style="margin:18px 0 8px">Заметки</div>
+      ${notes.length ? notes.map(n => `<p class="body2" style="margin-top:6px">${esc(n.text)}<br><span class="tiny">${esc(n.byName || 'Участник')} · ${esc(fmt(n.at))}</span></p>`).join('') : '<p class="body2">Пока нет заметок.</p>'}
+      ${editable ? `<div class="field" style="margin-top:12px"><input class="inp" id="CheckNoteIn" maxlength="200" autocomplete="off" placeholder="Заметка к дежурству…"></div>
+      <div style="margin-top:10px"><button class="btn btn-q" id="CheckNoteBtn">Оставить заметку</button></div>` : ''}</div>`;
+  },
+  bind(now){
+    if(!now) return;
+    const key = now.startedAt;
+    document.querySelectorAll('[data-check]').forEach(inp => { inp.onchange = () => Check.toggle(key, inp.dataset.check, inp); });
+    const btn = $('#CheckNoteBtn'), field = $('#CheckNoteIn');
+    if(btn && field){
+      const send = () => Check.addNote(field.value);
+      btn.onclick = send;
+      field.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); send(); } });
+    }
+  },
+  async toggle(key, item, input){
+    const prev = !!(Check.get(key).items || {})[item];
+    if(S.busy){ input.checked = prev; return; }
+    const dc = S.state.dutyCheck || (S.state.dutyCheck = {});
+    const rec = dc[key] || (dc[key] = { items: {} });
+    rec.items[item] = !prev;
+    rec.by = S.user?.id;
+    rec.at = new Date().toISOString();
+    input.checked = !prev;
+    await run(async () => { await Store.saveState(); render(); });
+  },
+  async addNote(text){
+    const t = String(text || '').trim().slice(0, Check.NOTE_MAX);
+    if(!t) return;
+    if(S.busy){ toast('Подождите…'); return; }
+    const me = S.people.find(p => p.user_id === S.user?.id);
+    const notes = S.state.dutyNotes || (S.state.dutyNotes = []);
+    notes.push({ at: new Date().toISOString(), by: S.user?.id, byName: me?.name || S.profile?.display_name || 'Участник', text: t });
+    if(notes.length > Check.NOTES_CAP) S.state.dutyNotes = notes.slice(-Check.NOTES_CAP);
+    await run(async () => { await Store.saveState(); render(); toast('Заметка сохранена'); });
+  }
+};
+
+/* ---------------- ordo-131: достижения и серии (feat 7) ----------------
+   Только вычисление из log, ноль записей в БД, ноль влияния на очередь.
+   Замена в log: заменяющий — обычная запись без sub, а сразу за ней в том же
+   событии идёт запись заменённого с sub:true (см. Duty.finish, flatMap).
+   Поэтому «Выручил группу» определяется надёжно: моя запись без sub, за
+   которой следует запись с sub:true. writeoff-записи пропускаются везде. */
+const Achv = {
+  /* чистые счётчики: только свои записи без sub, без списаний долгов */
+  counts(log, personId){
+    let present = 0, absent = 0, escaped = 0, subbed = false;
+    (log || []).forEach(en => {
+      if(!en || en.writeoff || !Array.isArray(en.people)) return;
+      const ps = en.people;
+      for(let i = 0; i < ps.length; i++){
+        const it = ps[i];
+        if(!it || it.sub || it.id !== personId) continue;
+        if(it.status === STATUS.PRESENT) present++;
+        else if(it.status === STATUS.ABSENT) absent++;
+        else if(it.status === STATUS.ESCAPED) escaped++;
+        if(ps[i + 1] && ps[i + 1].sub) subbed = true;
+      }
+    });
+    return { present, absent, escaped, subbed };
+  },
+  /* текущая серия PRESENT подряд, считая с конца log; записи без меня и
+     writeoff пропускаются, ABSENT/ESCAPED обрывают серию */
+  streak(log, personId){
+    let n = 0;
+    for(let k = (log || []).length - 1; k >= 0; k--){
+      const en = log[k];
+      if(!en || en.writeoff || !Array.isArray(en.people)) continue;
+      const it = en.people.find(x => x && !x.sub && x.id === personId);
+      if(!it) continue;
+      if(it.status === STATUS.PRESENT) n++;
+      else break;
+    }
+    return n;
+  },
+  badges(log, personId){
+    const c = Achv.counts(log, personId);
+    return [
+      { id: 'first', name: 'Первое дежурство', cond: 'Отдежурить хотя бы раз', earned: c.present >= 1 },
+      { id: 'perfect10', name: '10 из 10', cond: '10 дежурств без пропусков и побегов', earned: c.present >= 10 && (c.absent + c.escaped) === 0 },
+      { id: 'sub', name: 'Выручил группу', cond: 'Выйти на дежурство вместо другого', earned: c.subbed }
+    ];
+  },
+  sectionHTML(log, personId){
+    const st = Achv.streak(log, personId);
+    const badges = Achv.badges(log, personId);
+    return `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Достижения</div>
+      <p class="body2">Серия без пропусков: <b>${st}</b></p>
+      <div class="achv-chips">${badges.map(b =>
+        `<span class="achv-chip${b.earned ? ' earned' : ' locked'}">${b.earned ? '✓ ' : ''}${esc(b.name)}${b.earned ? '' : ' — ' + esc(b.cond)}</span>`).join('')}</div></div>`;
+  }
+};
 const Authz = {
   async callAccounts(body){
     const { data, error } = await db.functions.invoke('ordo-accounts', { body:{ group_id:S.group.id, ...body } });
@@ -2589,8 +2719,10 @@ function vHome(){
       <div class="fairbar" aria-hidden="true"><i style="width:${fair.value}%"></i></div>
       <p class="tiny" style="margin-top:6px">100 — идеально ровно</p>`;
 
-  const html = `${hero}${liveMarks}${action}${nextLine}${debtLine}${meLine}${fairLine}`;
+  const checkHtml = now ? Check.sectionHTML(now) : '';
+  const html = `${hero}${liveMarks}${checkHtml}${action}${nextLine}${debtLine}${meLine}${fairLine}`;
   shell(html, 'home');
+  Check.bind(now);
   const sb = $('#startBtn'); if(sb) sb.onclick = () => { if(sb.dataset.closed) toast('Назначение доступно в будни с 8:00 до 16:30.'); else Duty.start(); };
   const fb = $('#finishBtn'); if(fb) fb.onclick = () => Duty.finish();
   document.querySelectorAll('[data-live] button').forEach(b => b.onclick = () => {
@@ -3146,6 +3278,8 @@ function vProfile(){
       ${fcLine}</div>
       ${fair.value == null ? '<p class="tiny" style="margin-top:8px">Индекс справедливости: пока нет данных.</p>' : `<p class="tiny" style="margin-top:8px">${esc(Fair.rangeText(fair))} · 100 — идеально ровно</p>`}
       ${myIdx >= 0 && !paused && !iOwe ? '<p class="tiny" style="margin-top:6px">Дата сдвинется, если очередь изменится.</p>' : ''}</div>` : ''}
+
+    ${me ? Achv.sectionHTML(log, me.id) : ''}
 
     <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Журнал</div>
       ${recent.length ? recent.map((en) => {
