@@ -723,11 +723,12 @@ const dutyWindowOpen = () => {
    maxlength на поле + принудительная обрезка при сохранении (полю не доверяем) */
 const ASSIGN_COMMENT_MAX = 300;
 /* ordo-135: время дежурства (МСК). Конец смены — 16:30 (то же окно, что
-   dutyWindowOpen и .ics). Плашка «просрочено» — сразу после 16:30 в день
-   начала (или если дежурство начато в прошлый день). Автозакрытие — в 17:30:
-   в день начала после 17:30 либо при загрузке в любой следующий день —
-   дежурство не переживает следующий дежурный день, а у старосты остаётся
-   час (16:30–17:30) закрыть его вручную с отметками. */
+   dutyWindowOpen и .ics). ordo-136: дедлайн считается по эффективному дню —
+   начато до 16:30: дедлайн 16:30 в день начала; начато после 16:30: дедлайн
+   16:30 следующего дня (одно полное окно смены). Плашка «просрочено» —
+   сразу после 16:30 эффективного дня. Автозакрытие — в 17:30 эффективного
+   дня либо в любой следующий день — у старосты остаётся час (16:30–17:30)
+   закрыть дежурство вручную с отметками. */
 const DUTY_END_MIN = 990; /* 16:30 */
 const AUTO_CLOSE_MIN = 1050; /* 17:30 */
 
@@ -1461,6 +1462,13 @@ function mskParts(d){
     .formatToParts(new Date(d)).reduce((a,x)=>(a[x.type]=x.value,a),{});
   return { ymd:`${p.year}-${p.month}-${p.day}`, mins:(+p.hour % 24) * 60 + (+p.minute) };
 }
+/* ordo-136: следующий календарный день для даты 'YYYY-MM-DD' (чистая функция,
+   для эффективного дня дедлайна). Арифметика в UTC — без DST-сюрпризов. */
+function nextYmd(ymd){
+  const [y, m, d] = ymd.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d) + 864e5);
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
+}
 const Duty = {
   start(){
     if(S.state.current) return toast('Дежурство уже идёт');
@@ -1550,19 +1558,27 @@ const Duty = {
       w.querySelector('#frNow').onclick = () => { closeSheet(); Duty.finish({ blank:true }); };
     }, 800);
   },
-  /* ordo-135: дежурство просрочено — после 16:30 МСК в день начала
-     или начато в прошлый календарный день. Чистая функция (now — для тестов). */
+  /* ordo-136: эффективный день дедлайна дежурства. Начато до конца смены
+     (<=16:30) — дедлайн 16:30 в тот же день; начато ПОСЛЕ 16:30 (вечерний
+     старт, в т.ч. демо) — дежурство получает одно полное окно смены,
+     дедлайн 16:30 следующего календарного дня. Чистая функция. */
+  deadlineYmd(c){
+    const s = mskParts(c.startedAt);
+    return s.mins <= DUTY_END_MIN ? s.ymd : nextYmd(s.ymd);
+  },
+  /* ordo-136: дежурство просрочено — после 16:30 МСК эффективного дня
+     дедлайна. Чистая функция (now — для тестов). */
   isOverdue(c, now){
     if(!c || !c.startedAt) return false;
-    const s = mskParts(c.startedAt), n = mskParts(now || new Date());
-    return s.ymd < n.ymd || (s.ymd === n.ymd && n.mins > DUTY_END_MIN);
+    const dl = Duty.deadlineYmd(c), n = mskParts(now || new Date());
+    return n.ymd > dl || (n.ymd === dl && n.mins > DUTY_END_MIN);
   },
-  /* ordo-135: пора автозакрывать — в день начала после 17:30 МСК
-     или при загрузке в любой следующий день. Чистая функция. */
+  /* ordo-136: пора автозакрывать — в эффективный день после 17:30 МСК
+     или в любой следующий день. Чистая функция. */
   shouldAutoClose(c, now){
     if(!c || !c.startedAt) return false;
-    const s = mskParts(c.startedAt), n = mskParts(now || new Date());
-    return s.ymd < n.ymd || (s.ymd === n.ymd && n.mins >= AUTO_CLOSE_MIN);
+    const dl = Duty.deadlineYmd(c), n = mskParts(now || new Date());
+    return n.ymd > dl || (n.ymd === dl && n.mins >= AUTO_CLOSE_MIN);
   },
   /* ordo-135: автозакрытие просроченного дежурства при загрузке.
      Священное: система НИКОГДА не выдумывает отметки — запись без people
