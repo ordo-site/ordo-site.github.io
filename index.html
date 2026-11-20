@@ -384,8 +384,9 @@ input::-ms-reveal,input::-ms-clear{display:none}
   .gmenu button:hover{background:var(--fill)}
 }
 /* ordo-128-demo */
-.demobanner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--fill);color:var(--sec);font-size:14px;font-weight:600;border-bottom:1px solid var(--fill)}
+.demobanner{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;padding:10px 16px;background:var(--fill);color:var(--sec);font-size:14px;font-weight:600;border-bottom:1px solid var(--fill);flex-wrap:wrap}
 .demobanner-btn{flex:none;min-height:36px;padding:0 14px;border-radius:11px;border:0;background:var(--fill);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
+.demobanner-btn.on{background:var(--accent);color:var(--accent-ink)}
 #loginDemo{width:100%;margin-top:12px}
 /* ordo-131-check */
 .check-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--fill);cursor:pointer}
@@ -719,7 +720,7 @@ const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE
 /* ---------------- roles ---------------- */
 const isStaff  = () => ['admin','head','teacher'].includes(S.profile?.role);
 const isAdmin  = () => S.profile?.role === 'admin';
-const isLeader = () => S.membership?.role === 'leader' || isStaff();
+const isLeader = () => (S.demo && S.demoLeader) || S.membership?.role === 'leader' || isStaff(); /* ordo-142: в демке староста — переключателем, только на демо-данных */
 const dutyWindowOpen = () => {
   const p = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false})
     .formatToParts(new Date()).reduce((a,x)=>(a[x.type]=x.value,a),{});
@@ -1133,7 +1134,7 @@ const Demo = {
   enter(){
     const { people, state } = Demo.makeData();
     Object.assign(S, {
-      demo:true,
+      demo:true, demoLeader:false,
       user:{ id:'demo', email:'demo@ordo', email_confirmed_at:new Date().toISOString() },
       profile:{ role:'student', display_name:'Гость (демо)' },
       group:{ id:'demo', name:'3СА24Н · демо' },
@@ -1145,9 +1146,19 @@ const Demo = {
     Demo.ensureMe();
     render();
   },
+  /* ordo-142: переключатель «смотреть как староста» — только в демке.
+     Даёт гостю права старосты внутри демо-данных (isLeader() учитывает
+     S.demoLeader); на реальные роли и права не влияет, при выходе из
+     демки сбрасывается. */
+  toggleLeader(){
+    if(!S.demo) return;
+    S.demoLeader = !S.demoLeader;
+    render();
+    toast(S.demoLeader ? 'Демо: смотрите как староста' : 'Демо: смотрите как студент');
+  },
   exit(){
     Object.assign(S, {
-      demo:false,
+      demo:false, demoLeader:false,
       user:null, profile:null, group:null, groups:[], membership:null,
       memberRoles:{}, people:[], state:{}, stateVer:null,
       view:'home', orderMode:false, fromCache:false, busy:false,
@@ -1809,6 +1820,7 @@ const People = {
   remove(id){
     const p = S.people.find(x => x.id === id);
     if(!p) return;
+    if(S.demo){ toast('В демо заявки на удаление недоступны'); return; } /* ordo-142: в демке «Убрать» не уходит в RPC */
     if(isStaff()){
       confirmBox('Убрать участника?', `${p.name} пропадёт из очереди. Журнал сохранится.`, 'Убрать',
         () => run(async () => {
@@ -2802,7 +2814,7 @@ function shell(content, active){
       <button class="iconbtn themebtn" id="themeBtn" aria-label="Переключить тему"></button>
     </div>
   </div></div>
-  ${S.demo ? `<div class="demobanner"><span>Демо-режим · данные вымышлены</span><button class="demobanner-btn" id="demoExit" type="button">Выйти из демо</button></div>` : ''}
+  ${S.demo ? `<div class="demobanner"><span style="flex:1;min-width:150px">${S.demoLeader ? 'Демо-режим · вы — староста' : 'Демо-режим · данные вымышлены'}</span><button class="demobanner-btn${S.demoLeader ? ' on' : ''}" id="demoLeaderTgl" type="button" aria-pressed="${S.demoLeader ? 'true' : 'false'}">${S.demoLeader ? 'Смотреть как студент' : 'Смотреть как староста'}</button><button class="demobanner-btn" id="demoExit" type="button">Выйти из демо</button></div>` : ''}
   <main class="screen" id="main" tabindex="-1"><div class="wrap${_vin}">${content}</div></main>
   <nav class="tabbar" aria-label="Навигация"><div class="tabbar-in">
     ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}"${active===k?' aria-current="page"':''}>${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}${k==='profile' && EmailSwitch.needsAction() ? `<span class="bdg-dot"></span>` : ''}</button>`).join('')}
@@ -2811,6 +2823,7 @@ function shell(content, active){
   Easter.apply(Easter.mode);
   $('#themeBtn').onclick = Theme.toggle;
   const _demoExit = $('#demoExit'); if(_demoExit) _demoExit.onclick = () => Demo.exit();
+  const _demoTgl = $('#demoLeaderTgl'); if(_demoTgl) _demoTgl.onclick = () => Demo.toggleLeader();
   $('#brandHome').onclick = () => { S.view = 'home'; render(); };
   $('#brandHome').addEventListener('click', easterTap);
   const gs = $('#gSel');
@@ -3310,7 +3323,7 @@ async function vRequests(){
       <div class="rows" style="margin-top:16px"><div class="row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="grow"><b>Обратная связь</b><div class="sub">Что-то сломалось или есть идея — напишите в Telegram.</div></div><button class="btn btn-p" id="fbMail" style="min-height:44px">Написать в Telegram</button></div></div>
       ` +
       (staff ? `<div id="rqBody"><div class="eyebrow" style="margin:20px 0 4px">Заявки · ожидают решения</div><div id="rqList"></div></div>`
-             : isLeader() ? `<div id="rqBody"><div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div><div id="rqList"></div></div>` : ''), 'requests');
+             : (!S.demo && isLeader()) ? `<div id="rqBody"><div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div><div id="rqList"></div></div>` : ''), 'requests');
     const fbBtn = document.getElementById('fbMail');
     if(fbBtn) fbBtn.onclick = () => { location.href = SUPPORT_URL; };
     list = document.getElementById('rqList');
