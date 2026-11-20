@@ -845,6 +845,16 @@ const Ics = {
     toast('Файл .ics сохранён');
   }
 };
+/* ordo-140: подпись кнопки .ics зависит от устройства — тот же паттерн,
+   что installStepsHtml: на iOS — про iPhone, на Android — нейтрально,
+   на десктопе — про свой календарь. Механизм скачивания не меняется. */
+function icsHint(){
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  const ios = /iPhone|iPad|iPod/.test(ua) || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if(ios) return 'Скачивается файл .ics — откройте его на iPhone, события добавятся в Календарь. При изменении очереди скачайте заново.';
+  if(/Android/.test(ua)) return 'Скачивается файл .ics — откройте его, события добавятся в календарь. При изменении очереди скачайте заново.';
+  return 'Скачивается файл .ics — откройте его в своём календаре. При изменении очереди скачайте заново.';
+}
 
 /* ---------------- store ---------------- */
 /* сортировка групп: цифра курса, затем название по алфавиту (1АА26Н < 1ББ26Н < 2СА25Н) */
@@ -3461,7 +3471,7 @@ const VolM = {
           return `<div class="row" style="align-items:flex-start"><div class="grow">
             <b>${esc(x.o_name)}</b>
             <div class="sub">${esc(x.o_group || '')}</div>
-            ${acts.length ? `<div style="display:flex;gap:8px;margin-top:10px">${acts.map(a => `<button class="btn ${a[2]}" style="min-height:44px;flex:1" data-vd="${esc(x.o_user_id)}|${a[0]}">${a[1]}</button>`).join('')}</div>` : ''}
+            ${acts.length ? `<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${acts.map(a => `<button class="btn ${a[2]}" style="min-height:44px;width:100%" data-vd="${esc(x.o_user_id)}|${a[0]}">${a[1]}</button>`).join('')}</div>` : ''}
           </div><span class="tag ${info ? info[1] : 'blue'}">${esc(info ? info[0] : x.o_status)}</span></div>`;
         }).join('') + `</div>` : `<p class="body2" style="color:var(--ter)">Пока никто не записался.</p>`;
         body.querySelectorAll('[data-vd]').forEach(b => b.onclick = async () => {
@@ -3512,10 +3522,10 @@ async function vVolManage(){
         <b>${esc(e.title)}</b>
         <div class="sub">${esc(meta)}</div>
         <div class="sub" style="margin-top:2px">${esc(stat)}</div>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn btn-q" style="min-height:44px;flex:1" data-vmo="${esc(e.id)}">Участники</button>
-          <button class="btn btn-q" style="min-height:44px;flex:1" data-vmc="${esc(e.id)}|${e.closed ? 0 : 1}">${e.closed ? 'Открыть запись' : 'Закрыть запись'}</button>
-          <button class="btn btn-danger-q" style="min-height:44px;flex:1" data-vmx="${esc(e.id)}">Удалить</button>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <button class="btn btn-q" style="min-height:44px;width:100%" data-vmo="${esc(e.id)}">Участники</button>
+          <button class="btn btn-q" style="min-height:44px;width:100%" data-vmc="${esc(e.id)}|${e.closed ? 0 : 1}">${e.closed ? 'Открыть запись' : 'Закрыть запись'}</button>
+          <button class="btn btn-danger-q" style="min-height:44px;width:100%" data-vmx="${esc(e.id)}">Удалить</button>
         </div>
       </div>${e.closed ? '<span class="tag amber">Закрыто</span>' : ''}</div>`;
     }).join('') + `</div>`);
@@ -3579,7 +3589,7 @@ function vProfile(){
     `<button class="row" id="pfPw"><div class="grow">Сменить пароль</div><span class="chev">›</span></button>`,
     EmailSwitch.profileRow(),
     isLeader() ? `<button class="row" id="pfExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>` : '',
-    me ? `<button class="row" id="pfIcs"><div class="grow"><b>Календарь дежурств (.ics)</b><div class="sub">Скачивается файл .ics — откройте его на iPhone, события добавятся в Календарь. При изменении очереди скачайте заново.</div></div><span class="chev">›</span></button>` : '',
+    me ? `<button class="row" id="pfIcs"><div class="grow"><b>Календарь дежурств (.ics)</b><div class="sub">${icsHint()}</div></div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfVol"><div class="grow"><b>Волонтёрство</b><div class="sub">События и запись</div></div><span class="chev">›</span></button>`,
         isStaff() ? `<button class="row" id="pfVolM"><div class="grow"><b>Волонтёрство · куратор</b><div class="sub">События и заявки</div></div><span class="chev">›</span></button>` : '',
