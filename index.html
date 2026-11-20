@@ -1992,7 +1992,9 @@ const Fair = {
 /* ---------------- ordo-131: чек-лист дежурства + заметки (feat 6) ----------------
    Хранение — только новые ключи S.state: dutyCheck (по startedAt дежурства)
    и dutyNotes (максимум 20 последних). queue/log/current не трогаем, кроме чтения.
-   Запись — только через Store.saveState() внутри run(), как остальные мутации. */
+   Запись — только через Store.saveState(); галочки и заметки обновляются
+   на месте без render() (ordo-141: полный render() при каждом тапе дёргал
+   страницу — DOM перестраивался, скролл прыгал). */
 const Check = {
   /* ordo-134: пункты по слову Дамира — 'floor' и 'board' сохранили ключи
      (тот же смысл, старые отметки не сгорят); 'chairs' — новый ключ;
@@ -2009,16 +2011,19 @@ const Check = {
     return !!(me && (c.ids || []).includes(me.id));
   },
   get(key){ return (S.state.dutyCheck || {})[key] || { items: {} }; },
+  notesHTML(){
+    const notes = (S.state.dutyNotes || []).slice(-3).reverse();
+    return notes.length ? notes.map(n => `<p class="body2" style="margin-top:6px">${esc(n.text)}<br><span class="tiny">${esc(n.byName || 'Участник')} · ${esc(fmt(n.at))}</span></p>`).join('') : '<p class="body2">Пока нет заметок.</p>';
+  },
   sectionHTML(now){
     const key = now.startedAt;
     const items = Check.get(key).items || {};
     const editable = Check.canEdit();
-    const notes = (S.state.dutyNotes || []).slice(-3).reverse();
     return `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Чек-лист дежурства</div>
       <div class="rows" style="padding:0 16px">${Check.ITEMS.map(([k, label]) =>
         `<label class="check-row"><input type="checkbox" data-check="${k}"${items[k] ? ' checked' : ''}${editable ? '' : ' disabled'}><span>${esc(label)}</span></label>`).join('')}</div>
       <div class="eyebrow" style="margin:18px 0 8px">Заметки</div>
-      ${notes.length ? notes.map(n => `<p class="body2" style="margin-top:6px">${esc(n.text)}<br><span class="tiny">${esc(n.byName || 'Участник')} · ${esc(fmt(n.at))}</span></p>`).join('') : '<p class="body2">Пока нет заметок.</p>'}
+      <div id="CheckNotes">${Check.notesHTML()}</div>
       ${editable ? `<div class="field" style="margin-top:12px"><input class="inp" id="CheckNoteIn" maxlength="200" autocomplete="off" placeholder="Заметка к дежурству…"></div>
       <div style="margin-top:10px"><button class="btn btn-q" id="CheckNoteBtn">Оставить заметку</button></div>` : ''}</div>`;
   },
@@ -2033,16 +2038,28 @@ const Check = {
       field.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); send(); } });
     }
   },
+  /* ordo-141: тап по галочке обновляет input на месте и сохраняет в фоне —
+     без render(): полная перерисовка страницы при каждом тапе дёргала скролл.
+     При ошибке сохранения — галочка и состояние возвращаются, тост об ошибке. */
   async toggle(key, item, input){
     const prev = !!(Check.get(key).items || {})[item];
     if(S.busy){ input.checked = prev; return; }
     const dc = S.state.dutyCheck || (S.state.dutyCheck = {});
     const rec = dc[key] || (dc[key] = { items: {} });
-    rec.items[item] = !prev;
+    const next = !prev;
+    rec.items[item] = next;
     rec.by = S.user?.id;
     rec.at = new Date().toISOString();
-    input.checked = !prev;
-    await run(async () => { await Store.saveState(); render(); });
+    input.checked = next;
+    S.busy = true;
+    try{ await Store.saveState(); }
+    catch(e){
+      rec.items[item] = prev;
+      input.checked = prev;
+      fail(e);
+      try{ await Store.loadGroup(); }catch(_){}
+    }
+    finally{ S.busy = false; }
   },
   async addNote(text){
     const t = String(text || '').trim().slice(0, Check.NOTE_MAX);
@@ -2050,9 +2067,26 @@ const Check = {
     if(S.busy){ toast('Подождите…'); return; }
     const me = S.people.find(p => p.user_id === S.user?.id);
     const notes = S.state.dutyNotes || (S.state.dutyNotes = []);
-    notes.push({ at: new Date().toISOString(), by: S.user?.id, byName: me?.name || S.profile?.display_name || 'Участник', text: t });
+    const entry = { at: new Date().toISOString(), by: S.user?.id, byName: me?.name || S.profile?.display_name || 'Участник', text: t };
+    notes.push(entry);
     if(notes.length > Check.NOTES_CAP) S.state.dutyNotes = notes.slice(-Check.NOTES_CAP);
-    await run(async () => { await Store.saveState(); render(); toast('Заметка сохранена'); });
+    const field = document.getElementById('CheckNoteIn');
+    S.busy = true;
+    try{
+      await Store.saveState();
+      /* ordo-141: заметка дорисовывается на месте, без render() */
+      const box = document.getElementById('CheckNotes');
+      if(box) box.innerHTML = Check.notesHTML();
+      if(field) field.value = '';
+      toast('Заметка сохранена');
+    }catch(e){
+      const arr = S.state.dutyNotes || [];
+      const i = arr.indexOf(entry);
+      if(i >= 0) arr.splice(i, 1);
+      fail(e);
+      try{ await Store.loadGroup(); }catch(_){}
+    }
+    finally{ S.busy = false; }
   }
 };
 
@@ -2304,11 +2338,13 @@ const Authz = {
   async exportExcel(){
     await run(async () => {
       await ensureXlsx();
+      /* ordo-141: заголовки «Журнала» — всегда, даже при пустом журнале:
+         json_to_sheet([]) без header даёт совсем пустой лист без шапки */
       const logRows = (S.state.log || []).map(e => ({ Дата:fmt(e.at), Событие:e.action || '', Комментарий:e.comment || '', Засчитано:e.counted ? 'Да' : 'Нет' }));
       const peopleRows = S.people.map(p => ({ ФИО:p.name, Аккаунт:p.user_id ? 'Подключён' : 'Не подключён' }));
       const statsRows = statsFromLog(S.state.log, S.people);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(logRows), 'Журнал');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(logRows, { header:['Дата','Событие','Комментарий','Засчитано'] }), 'Журнал');
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(peopleRows), 'Люди');
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['ФИО','Был','Не было','Сбежал','Всего'], ...statsRows.map(r => [r.ФИО, r.Был, r['Не было'], r.Сбежал, r.Всего])]), 'Статистика');
       XLSX.writeFile(wb, `ordo-${S.group.name}.xlsx`);
