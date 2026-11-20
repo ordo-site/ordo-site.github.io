@@ -242,6 +242,13 @@ button.row:active{background:var(--fill)}
 .err.show{display:block;animation:vin .3s var(--spring)}
 .rise{animation:rise .7s var(--spring) backwards}
 @keyframes rise{from{opacity:0;transform:translateY(18px)}}
+/* ordo-138: «Посмотреть демо» при появлении экрана входа плавно поднимается
+   и три раза мягко пульсирует серым кольцом, потом успокаивается.
+   Пульс конечный (3 цикла), только на экране входа; :active и enterSoon из
+   ordo-135 не тронуты. Серый, строго ч/б — без синего кольца odot. */
+#loginDemo.demo-attn{animation:rise .7s var(--spring) .24s backwards,demoPulse 1.5s ease 1.05s 3}
+@keyframes demoPulse{0%{box-shadow:0 0 0 0 rgba(128,128,128,.45)}70%{box-shadow:0 0 0 12px rgba(128,128,128,0)}100%{box-shadow:0 0 0 0 rgba(128,128,128,0)}}
+@media (prefers-reduced-motion:reduce){#loginDemo.demo-attn{animation:none}}
 .vin{animation:vin .32s var(--spring)}
 @keyframes vin{from{opacity:0;transform:translateY(10px)}}
 
@@ -1157,7 +1164,7 @@ const Auth = {
           <button type="button" class="eyebtn" id="pwEye" aria-label="Показать пароль" tabindex="-1">${ICON.eye}</button></div></div>
         <button class="btn btn-p" id="loginBtn" type="submit" style="margin-top:6px">Войти</button>
       </form>
-      <button class="btn btn-q" id="loginDemo" type="button">Посмотреть демо</button>
+      <button class="btn btn-q demo-attn" id="loginDemo" type="button">Посмотреть демо</button>
       <p class="tiny" style="margin-top:10px;text-align:center">Демо: вымышленная группа, без регистрации.</p>
       <div class="foot rise" style="animation-delay:.28s">
         <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
