@@ -380,6 +380,26 @@ input::-ms-reveal,input::-ms-clear{display:none}
 /* ordo-129-fair */
 .fairbar{height:6px;border-radius:99px;background:var(--fill);overflow:hidden;margin-top:8px}
 .fairbar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
+/* ordo-130-icsqr */
+.qr-card{background:var(--bg2);border-radius:18px;padding:22px 18px;text-align:center}
+.qr-title{font-size:24px;font-weight:800;margin:8px 0 6px;letter-spacing:-.02em}
+.qr-box{width:min(260px,72vw);margin:18px auto 12px;background:#fff;border-radius:12px;padding:12px}
+.qr-box svg{width:100%;height:auto;display:block}
+.qr-url{font-size:14px;color:var(--sec);overflow-wrap:anywhere}
+@media print{
+  /* печать строго чёрно-белая: только #000/#fff, без топбара, таббара и кнопок */
+  body{background:#fff!important;color:#000!important}
+  .topbar,.tabbar,.skip,#toast,#verBar,#ptr,.actions{display:none!important}
+  .screen{padding:0}
+  .wrap{max-width:100%}
+  .sec-head{margin-bottom:4px}
+  .qr-card,.qr-card *{color:#000!important;background:#fff!important;border-color:#000!important;box-shadow:none!important}
+  .qr-card{padding:0}
+  .qr-title{font-size:28px}
+  .qr-box{width:320px;max-width:80vw;margin:24px auto}
+  .qr-box svg path{fill:#000!important;stroke:transparent!important}
+  .qr-url{font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -389,6 +409,7 @@ input::-ms-reveal,input::-ms-clear{display:none}
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script>
 'use strict';
 /* ============================================================
@@ -696,6 +717,84 @@ function myPosition(){
   if(!me) return -1;
   return currentQueue().findIndex(p => p.id === me.id);
 }
+
+/* ---------------- календарь (.ics): снимок моих дежурств, генерация на клиенте.
+   Это НЕ живая подписка: статический хостинг не даёт webcal-ленты, поэтому
+   скачивается файл-снимок; при изменении очереди его скачивают заново. */
+const Ics = {
+  COUNT: 6,
+  mskToday(){
+    const p = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'})
+      .formatToParts(new Date()).reduce((a,x)=>(a[x.type]=x.value,a),{});
+    return { y:+p.year, m:+p.month, d:+p.day };
+  },
+  isWeekday(d){ const w = d.getDay(); return w >= 1 && w <= 5; },
+  nextWeekday(d){ const n = new Date(d); do{ n.setDate(n.getDate()+1); }while(!Ics.isWeekday(n)); return n; },
+  /* якорь: день, с которого отсчитывается позиция в очереди.
+     Сегодня — если будни и дежурство уже идёт или окно ещё не закрылось (до 16:30 МСК);
+     иначе — следующий будний день. */
+  anchorDate(){
+    const t = Ics.mskToday();
+    const today = new Date(t.y, t.m - 1, t.d);
+    if(!Ics.isWeekday(today)) return Ics.nextWeekday(today);
+    const p = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hour12:false})
+      .formatToParts(new Date()).reduce((a,x)=>(a[x.type]=x.value,a),{});
+    const mins = (+p.hour % 24) * 60 + (+p.minute);
+    if(S.state.current || mins <= 990) return today;
+    return Ics.nextWeekday(today);
+  },
+  /* мои следующие дежурства: позиция в очереди + шаги длиной в цикл, только будни */
+  dates(){
+    const pos = myPosition();
+    if(pos < 0) return [];
+    const cycle = Math.max(currentQueue().length, 1);
+    const out = [];
+    let d = Ics.anchorDate();
+    for(let i = 0; i < pos; i++) d = Ics.nextWeekday(d);
+    for(let i = 0; i < Ics.COUNT; i++){
+      out.push(new Date(d));
+      for(let j = 0; j < cycle; j++) d = Ics.nextWeekday(d);
+    }
+    return out;
+  },
+  pad(n){ return String(n).padStart(2,'0'); },
+  stamp(d){ return `${d.getFullYear()}${Ics.pad(d.getMonth()+1)}${Ics.pad(d.getDate())}T${Ics.pad(d.getHours())}${Ics.pad(d.getMinutes())}${Ics.pad(d.getSeconds())}`; },
+  escText(s){ return String(s ?? '').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); },
+  build(){
+    const me = S.people.find(p => p.user_id === S.user?.id);
+    if(!me) return '';
+    const gname = S.group?.name || 'Ordo';
+    const u = new Date();
+    const dtstamp = `${u.getUTCFullYear()}${Ics.pad(u.getUTCMonth()+1)}${Ics.pad(u.getUTCDate())}T${Ics.pad(u.getUTCHours())}${Ics.pad(u.getUTCMinutes())}${Ics.pad(u.getUTCSeconds())}Z`;
+    const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Ordo//Duty Calendar//RU','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+    Ics.dates().forEach(d => {
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 16, 30, 0);
+      const day = `${start.getFullYear()}${Ics.pad(start.getMonth()+1)}${Ics.pad(start.getDate())}`;
+      lines.push('BEGIN:VEVENT',
+        `UID:ordo-${me.id}-${day}@ordo-site.github.io`,
+        `DTSTAMP:${dtstamp}`,
+        `DTSTART:${Ics.stamp(start)}`,
+        `DTEND:${Ics.stamp(end)}`,
+        `SUMMARY:${Ics.escText('Дежурство Ordo — ' + gname)}`,
+        `DESCRIPTION:${Ics.escText('Дежурство 8:00–16:30. Дата может сдвинуться при изменении очереди — скачайте календарь заново.')}`,
+        'END:VEVENT');
+    });
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n') + '\r\n';
+  },
+  download(){
+    const text = Ics.build();
+    if(!text){ toast('Нет дежурств в очереди'); return; }
+    const blob = new Blob([text], { type:'text/calendar;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ordo-дежурства-${S.group?.name || 'группа'}.ics`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('Файл .ics сохранён');
+  }
+};
 
 /* ---------------- store ---------------- */
 /* сортировка групп: цифра курса, затем название по алфавиту (1АА26Н < 1ББ26Н < 2СА25Н) */
@@ -2331,7 +2430,7 @@ function shell(content, active){
   tabs.push(['requests','Обращения',ICON.chat]);
   tabs.push(['profile','Профиль',ICON.user]);
   const short = (S.profile?.display_name || S.user?.email || '').split('@')[0];
-  const _titles = { home:'Главная', queue:'Очередь', people:'Группа', requests:'Обращения', profile:'Профиль', admin:'Администрирование', vol:'Волонтёрство', volm:'Волонтёрство · куратор' };
+  const _titles = { home:'Главная', queue:'Очередь', people:'Группа', requests:'Обращения', profile:'Профиль', admin:'Администрирование', vol:'Волонтёрство', volm:'Волонтёрство · куратор', qr:'QR на дверь' };
   document.title = (_titles[S.view] || 'Ordo') + ' · Ordo';
   root.innerHTML = `
   <div class="topbar"><div class="topbar-in">
@@ -2528,10 +2627,11 @@ function vQueue(){
       <span class="qname">${esc(p.name)}</span>${tags.join(' ')}${ord}</div>`;
   }).join('');
   const head = `<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Очередь</h1>
-    ${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</div>
+    <span style="display:flex;gap:4px;align-items:baseline"><button class="linkbtn" id="qrBtn">QR на дверь</button>${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</span></div>
     <p class="body2">${q.length} ${peopleWord(q.length)}</p>`;
   shell(`${head}<div class="sec qlist" id="qList" style="margin-top:16px">${rows || '<p class="body2">Пока пусто.</p>'}</div>`, 'queue');
   const t = $('#ordTgl'); if(t) t.onclick = () => { S.orderMode = !S.orderMode; render(); };
+  const qb = $('#qrBtn'); if(qb) qb.onclick = () => { S.view = 'qr'; render(); };
   document.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
     const [id, d] = b.dataset.mv.split('|');
     Duty.move(id, +d);
@@ -2545,6 +2645,56 @@ function vQueue(){
     if(e.key === 'ArrowUp'){ e.preventDefault(); Duty.move(pid, -1); }
     else if(e.key === 'ArrowDown'){ e.preventDefault(); Duty.move(pid, 1); }
   }));
+}
+
+/* ---------------- QR на дверь: ссылка на главную сайта ---------------- */
+const Qr = {
+  url(){ return location.origin + location.pathname; },
+  /* кто дежурит сегодня: текущее дежурство, иначе первый в очереди */
+  today(){
+    const now = S.state.current;
+    if(now){
+      if((now.names || []).length) return { label:'Сегодня дежурит', names:now.names };
+      const ids = now.ids || [];
+      if(ids.length) return { label:'Сегодня дежурит', names:ids.map(id => S.people.find(p => p.id === id)?.name || '?') };
+    }
+    const q = currentQueue();
+    return q.length ? { label:'Далее в очереди', names:[q[0].name] } : { label:'Сегодня дежурит', names:[] };
+  },
+  draw(){
+    const box = document.getElementById('qrBox');
+    if(!box) return;
+    const url = Qr.url();
+    const link = document.getElementById('qrLink');
+    if(link) link.textContent = url;
+    if(!window.qrcode){ box.innerHTML = '<p class="body2">QR не построился — нет связи. Откройте ссылку ниже.</p>'; toast('QR не построился — нет связи'); return; }
+    try{
+      const qr = qrcode(0, 'M');
+      qr.addData(url);
+      qr.make();
+      box.innerHTML = qr.createSvgTag(8, 2);
+    }catch(e){ box.innerHTML = '<p class="body2">QR не построился — нет связи. Откройте ссылку ниже.</p>'; toast('QR не построился — нет связи'); }
+  }
+};
+function vQr(){
+  const t = Qr.today();
+  const who = t.names.length ? t.names.join(' + ') : 'никто не дежурит';
+  shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">QR на дверь</h1></div>
+    <div class="qr-card" id="qrCard">
+      <div class="eyebrow">Ordo · ${esc(S.group?.name || '')}</div>
+      <h2 class="qr-title">Дежурства</h2>
+      <p class="body2">${esc(t.label)}: <b>${esc(who)}</b></p>
+      <div class="qr-box" id="qrBox" role="img" aria-label="QR-код со ссылкой на сайт Ordo"></div>
+      <p class="qr-url" id="qrLink"></p>
+      <p class="tiny">Наведите камеру телефона — откроется сайт Ordo.</p>
+    </div>
+    <div class="actions" style="margin-top:20px">
+      <button class="btn btn-q" id="qrBack">Назад</button>
+      <button class="btn btn-p" id="qrPrint">Печать</button>
+    </div>`, 'queue');
+  Qr.draw();
+  $('#qrBack').onclick = () => { S.view = 'queue'; render(); };
+  $('#qrPrint').onclick = () => window.print();
 }
 
 /* Перетаскивание очереди: ручка .qgrip, подтверждение при отпускании.
@@ -2976,6 +3126,7 @@ function vProfile(){
     `<button class="row" id="pfPw"><div class="grow">Сменить пароль</div><span class="chev">›</span></button>`,
     EmailSwitch.profileRow(),
     isLeader() ? `<button class="row" id="pfExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>` : '',
+    me ? `<button class="row" id="pfIcs"><div class="grow"><b>Календарь дежурств (.ics)</b><div class="sub">Скачивается файл .ics — откройте его на iPhone, события добавятся в Календарь. При изменении очереди скачайте заново.</div></div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfVol"><div class="grow"><b>Волонтёрство</b><div class="sub">События и запись</div></div><span class="chev">›</span></button>`,
         isStaff() ? `<button class="row" id="pfVolM"><div class="grow"><b>Волонтёрство · куратор</b><div class="sub">События и заявки</div></div><span class="chev">›</span></button>` : '',
@@ -3016,6 +3167,7 @@ function vProfile(){
   $('#pfPw').onclick = () => Auth.changePassword();
   const pe = $('#pfEmail'); if(pe) pe.onclick = () => { const st = EmailSwitch.status(); if(st === 'synthetic') EmailSwitch.openSheet(false); else if(st === 'confirmed') EmailSwitch.openSheet(true); else EmailSwitch.openConfirmSheet(); };
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
+  const ic = $('#pfIcs'); if(ic) ic.onclick = () => Ics.download();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
   const vl = $('#pfVol'); if(vl) vl.onclick = () => { S.view = 'vol'; render(); };
     const vm = $('#pfVolM'); if(vm) vm.onclick = () => { S.view = 'volm'; render(); };
@@ -3277,6 +3429,7 @@ function render(){
   else if(v === 'requests') vRequests();
   else if(v === 'vol') vVolunteer();
   else if(v === 'volm' && isStaff()) vVolManage();
+  else if(v === 'qr') vQr();
   else if(v === 'profile') vProfile();
   else if(v === 'admin' && isStaff()) vAdmin();
   else { S.view = 'home'; vHome(); }
