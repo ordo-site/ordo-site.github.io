@@ -559,7 +559,7 @@ function authErrorMessage(e){
 
 /* ---------------- UI primitives ---------------- */
 function sheet(html, opts){
-  closeSheet();
+  closeSheet(true); /* ordo-132: при замене шторки подсветку не трогаем — новая шторка сама решает */
   const lock = !!(opts && opts.lock); /* lock: нельзя закрыть тапом мимо или свайпом — только кнопкой */
   const w = document.createElement('div');
   w.className = 'scrim'; w.id = 'sheetWrap';
@@ -598,7 +598,14 @@ function sheet(html, opts){
   });
   return w;
 }
-function closeSheet(){ const w = document.getElementById('sheetWrap'); if(w) w.remove(); document.body.style.overflow = ''; }
+function closeSheet(suppressRestore){
+  const w = document.getElementById('sheetWrap');
+  if(w) w.remove();
+  document.body.style.overflow = '';
+  /* ordo-132: шторка закрылась — вернуть подсветку текущего вида
+     (напр. «Профиль» после «О проекте»). При замене шторки не трогаем. */
+  if(!suppressRestore) setActiveTab(S._activeTab);
+}
 function confirmBox(title, text, okLabel, onOk, danger, onCancel){
   const w = sheet(`<h3>${esc(title)}</h3><p class="body2" style="margin-top:8px">${esc(text)}</p>
     <div class="actions"><button class="btn btn-q" id="cfNo">Отмена</button>
@@ -823,6 +830,7 @@ const Store = {
       const { data:{ session } } = await db.auth.getSession();
       if(!session){ if(Invite.param()){ Invite.showJoin(Invite.param()); return; } Auth.login(); return; }
       S.user = session.user;
+      if(S.demo){ render(); return; } /* ordo-132-demo: гость вошёл в демо, пока boot ждал сессию — реальные данные не подмешиваем */
       await Auth.handleEmailLink();
       try{
         const c = JSON.parse(localStorage.getItem('ordo-cache-' + S.user.id) || 'null');
@@ -846,6 +854,7 @@ const Store = {
     }
   },
   async loadUser(){
+    if(S.demo) return; /* ordo-132-demo: гонка с входом в демо — реальный профиль не грузим */
     let { data:profile, error } = await db.from('profiles').select('*').eq('id', S.user.id).maybeSingle();
     if(error) throw error;
     if(!profile){
@@ -1011,17 +1020,20 @@ function emailSwitchOutcome(userEmail, newEmail){ return userEmail === newEmail 
 
 /* ---------------- demo mode (ordo-128-demo): purely client-side, no Supabase ---------------- */
 const Demo = {
-  /* Вымышленные студенты демо-группы. user_id нет ни у кого: гость — не участник очереди. */
+  /* Вымышленные студенты демо-группы. Гость играет роль Петровой Анны
+     (demo-p2): у неё фиксированный user_id 'demo', совпадающий с demo
+     S.user.id, — поэтому профиль, .ics, достижения и чек-лист в демо живые.
+     Она же — вторая в текущей дежурящей паре, так что чек-лист ей доступен. */
   makeData(){
     const names = ['Иванов Иван', 'Петрова Анна', 'Смирнов Артём', 'Кузнецова Мария', 'Соколов Дмитрий', 'Попова Екатерина', 'Лебедев Никита', 'Новикова Ольга', 'Морозов Сергей'];
     const now = Date.now();
     const people = names.map((name, i) => ({
-      id:'demo-p' + (i + 1), group_id:'demo', user_id:null, name, active:true, data:{},
+      id:'demo-p' + (i + 1), group_id:'demo', user_id: i === 1 ? 'demo' : null, name, active:true, data:{},
       created_at:new Date(now - (30 - i) * 864e5).toISOString()
     }));
     const queue = people.map(p => p.id);
     /* Журнал за последние 3 недели: пары дежурят по очереди, статусы смешанные.
-       Последняя отметка каждого определяет долг (debtorIds): двое остаются должниками. */
+       Последняя отметка каждого определяет долг (debtorIds): трое остаются должниками. */
     const dayName = d => d.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
     const pairs = [[0,1],[2,3],[4,5],[6,7],[8,0],[1,2],[3,4],[5,6],[7,8],[0,2],[4,6],[1,5],[3,8],[6,0]];
     const stats = [
@@ -1053,6 +1065,16 @@ const Demo = {
     };
     return { people, state:{ queue, log, current } };
   },
+  /* ordo-132-demo: демо-«я» детерминировано. Привязка ставится в makeData
+     (Петрова Анна, user_id 'demo') и подтверждается здесь и перед каждым
+     рендером — гонка с живым boot (сессия/кэш догружаются, пока гость уже
+     вошёл в демо) её не сбивает. Трогает только демо-группу (id 'demo-p2'). */
+  ensureMe(){
+    if(!S.demo) return;
+    if(!S.user || S.user.id !== 'demo') S.user = { id:'demo', email:'demo@ordo', email_confirmed_at:new Date().toISOString() };
+    const p = (S.people || []).find(x => x && x.id === 'demo-p2');
+    if(p) p.user_id = 'demo';
+  },
   enter(){
     const { people, state } = Demo.makeData();
     Object.assign(S, {
@@ -1065,6 +1087,7 @@ const Demo = {
       view:'home', orderMode:false, fromCache:false, busy:false,
       _wasCached:false, _cacheSig:null, _reqN:null, teacherGroups:undefined
     });
+    Demo.ensureMe();
     render();
   },
   exit(){
@@ -2554,6 +2577,7 @@ function aoaToRows(aoa){
 
 /* ---------------- shell ---------------- */
 function shell(content, active){
+  S._activeTab = active || null; /* ordo-132: какая вкладка подсвечена; подстраницы (vol/volm/admin) — не вкладки */
   const _vin = _skipVinOnce ? '' : ' vin'; _skipVinOnce = false;
   const tabs = [['home','Главная',ICON.home],['queue','Очередь',ICON.queue]];
   if(isLeader()) tabs.push(['people','Группа',ICON.group]);
@@ -2589,6 +2613,16 @@ function shell(content, active){
   if(gs) gs.onclick = e => { e.stopPropagation(); toggleGroupMenu(); };
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.view = b.dataset.tab; S.orderMode = false; _userNav = true; render(); window.scrollTo(0,0); try{ const _m = document.getElementById('main'); if(_m) _m.focus({ preventScroll:true }); }catch(_){} });
   if(isStaff()) refreshReqBadge();
+}
+/* ordo-132: подсветка вкладки таббара. key null — ни одна не подсвечена
+   (подстраницы и шторки). Вызывается из closeSheet при закрытии шторки,
+   чтобы вернуть подсветку текущего вида. */
+function setActiveTab(key){
+  document.querySelectorAll('.tabbar .tab').forEach(t => {
+    const on = key != null && t.dataset.tab === key;
+    t.classList.toggle('on', on);
+    if(on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
+  });
 }
 /* переключатель групп в шапке */
 function closeGroupMenu(){
@@ -3014,7 +3048,7 @@ async function vVolunteer(){
   if(!list){
     shell(`<h1 class="stitle" style="margin-top:4px">Волонтёрство</h1>
       <p class="body2" style="margin-top:6px">Выберите событие и запишитесь. Куратор подтвердит участие.</p>
-      <div id="volList" style="margin-top:16px"></div>`, 'profile');
+      <div id="volList" style="margin-top:16px"></div>`, 'vol');
     list = document.getElementById('volList');
     if(!list) return;
   }
@@ -3177,7 +3211,7 @@ async function vVolManage(){
     shell(`<h1 class="stitle" style="margin-top:4px">Волонтёрство · куратор</h1>
       <p class="body2" style="margin-top:6px">Создавайте события, подтверждайте заявки и отмечайте, кто пришёл.</p>
       <div style="margin-top:16px"><button class="btn btn-p" id="vmNew" style="width:100%">＋ Новое событие</button></div>
-      <div id="vmList" style="margin-top:16px"></div>`, 'profile');
+      <div id="vmList" style="margin-top:16px"></div>`, 'volm');
     document.getElementById('vmNew').onclick = () => VolM.compose();
     list = document.getElementById('vmList');
     if(!list) return;
@@ -3315,6 +3349,7 @@ function vProfile(){
       <button class="row" id="abMail"><div class="grow">Связь<div class="sub">Почта · datadzhiev@yandex.ru</div></div><span class="chev">›</span></button>
     </div>
     <div class="actions"><button class="btn btn-p" id="abOk">Закрыть</button></div>`);
+    setActiveTab(null); /* ordo-132: «О проекте» — подстраница, подсветка «Профиля» снимается; closeSheet вернёт её при закрытии */
     document.getElementById('abDocs').onclick = () => Docs.open();
     document.getElementById('abDonors').onclick = () => Donors.open();
     document.getElementById('abTeam').onclick = () => Team.open();
@@ -3366,7 +3401,7 @@ async function vAdmin(){
     /* first entry: build chrome; re-renders only refill the body (no scroll jump) */
     shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Администрирование</h1>
       <button class="linkbtn" id="adBack">Назад</button></div>
-      <div id="adBody"></div>`, 'profile');
+      <div id="adBody"></div>`, 'admin');
     $('#adBack').onclick = () => { S.view = 'profile'; render(); };
   }
   const body = $('#adBody');
@@ -3555,6 +3590,7 @@ function renderNoTeacherGroups(){
 
 /* ---------------- router ---------------- */
 function render(){
+  if(S.demo) Demo.ensureMe(); /* ordo-132-demo: привязка демо-«я» — до каждого рендера */
   if(!S.user){ Auth.login(); return; }
   if(!S.group) return;
   const v = S.view;
