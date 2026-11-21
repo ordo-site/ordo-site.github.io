@@ -29,7 +29,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-148';})();</script>
+window.__ORDO_BUILD='ordo-149';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -206,7 +206,7 @@ button.row:active{background:var(--fill)}
 .tag.green{background:rgba(48,209,88,.14);color:var(--green)}
 
 /* ---------- queue list ---------- */
-.qrow{display:flex;align-items:center;gap:14px;padding:15px 4px;border-bottom:1px solid var(--hair)}
+.qrow{display:flex;align-items:center;gap:14px;padding:15px 4px;border-bottom:1px solid var(--hair);cursor:pointer}
 .qrow:last-child{border-bottom:0}
 .qnum{font-size:15px;font-weight:600;color:var(--sec);width:30px;font-variant-numeric:tabular-nums}
 .qrow.me .qnum{color:var(--accent)}
@@ -397,6 +397,8 @@ input::-ms-reveal,input::-ms-clear{display:none}
 /* ordo-129-fair */
 .fairbar{height:6px;border-radius:99px;background:var(--fill);overflow:hidden;margin-top:8px}
 .fairbar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
+/* ordo-149: полоса — в цвет числа (порог), а не акцентная: одно значение — один цвет */
+.fairbar.good>i{background:var(--green)}.fairbar.warn>i{background:var(--amber)}.fairbar.bad>i{background:var(--red)}
 /* ordo-147: карточка индекса — крупное N/100, пояснение, средняя и диапазон */
 .faircard{margin-top:22px;background:var(--bg2);border-radius:18px;padding:16px}
 body:not(.light) .faircard{border:1px solid var(--hair)}
@@ -883,6 +885,7 @@ const Store = {
         if(c && c.group){ Object.assign(S, { profile:c.profile, group:c.group, membership:c.membership, people:c.people, state:c.state, memberRoles:c.memberRoles || {}, stateVer:null, fromCache:true }); if(c.reqN != null) S._reqN = c.reqN; S._cacheSig = sigPS(); S._wasCached = true; render(); }
       }catch(_){}
       await Store.loadUser();
+      if(DeepLink.groupParam()) DeepLink.clearGroupParam();
       if(Invite.param()){ Invite.showLoggedIn(Invite.param()); return; }
       if(Auth.mustChangePrompt()) return; /* вход по выданному паролю: сначала свой, остальное потом */
       Consent.check();
@@ -933,22 +936,26 @@ const Store = {
       if(!g.data?.length){ profile.role === 'teacher' ? renderNoTeacherGroups() : renderNoGroup(); return; }
       S.groups = (g.data || []).sort(groupSort);
       const saved = (()=>{ try{ return localStorage.getItem('dutysite-active-group'); }catch(_){ return null; } })();
-      S.group = g.data.find(x => x.id === saved) || g.data[0];
+      const deep = DeepLink.groupParam();
+      const deepHit = deep && g.data.some(x => x.id === deep);
+      S.group = g.data.find(x => x.id === deep) || g.data.find(x => x.id === saved) || g.data[0];
       const m = await db.from('group_members').select('group_id,role').eq('group_id', S.group.id).eq('user_id', S.user.id).maybeSingle();
       if(m.error) throw m.error;
       S.membership = m.data || { group_id:S.group.id, role:'leader' };
-      await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home';
+      await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = deepHit ? 'queue' : 'home';
       try{ if(await Duty.autoCloseIfNeeded()) toast('Просроченное дежурство закрыто автоматически — отметки не подтверждены'); }catch(e){ console.warn(e); }
       renderAfterBoot(); return;
     }
     const ms = await db.from('group_members').select('group_id,role').eq('user_id', S.user.id);
     if(ms.error) throw ms.error;
     if(!ms.data?.length){ renderNoGroup(); return; }
-    S.membership = ms.data[0];
+    const deep = DeepLink.groupParam();
+    S.membership = (ms.data || []).find(m => m.group_id === deep) || ms.data[0];
+    const deepHit = deep && S.membership.group_id === deep;
     const g = await db.from('groups').select('*').eq('id', S.membership.group_id).single();
     if(g.error) throw g.error;
     S.group = g.data;
-    await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home';
+    await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = deepHit ? 'queue' : 'home';
     try{ if(await Duty.autoCloseIfNeeded()) toast('Просроченное дежурство закрыто автоматически — отметки не подтверждены'); }catch(e){ console.warn(e); }
     renderAfterBoot();
   },
@@ -1701,7 +1708,7 @@ const Duty = {
     const marks = {};
     const dset = new Set(debtorIds());
     const w = sheet(`<h3>Кто отдежурил?</h3>
-      <p class="body2" style="margin-top:6px">Отметьте каждого. Неотмеченный станет должником.</p>
+      <p class="body2" style="margin-top:6px">Отметьте каждого: «Не было» — не пришёл, «Сбежал» — ушёл раньше. Неотмеченный станет должником.</p>
       <div style="margin-top:14px">${c.ids.map(id => `
         <div class="field"><label>${esc(nm(id))}${c.forIds?.[id] ? ' · за ' + esc(nm(c.forIds[id])) : ''}${dset.has(id) ? ' · должник' : ''}</label>
         <div class="seg3" data-person="${esc(id)}">
@@ -2220,9 +2227,9 @@ const Achv = {
   badges(log, personId){
     const c = Achv.counts(log, personId);
     return [
-      { id: 'first', name: 'Первое дежурство', cond: 'Отдежурить хотя бы раз', earned: c.present >= 1 },
-      { id: 'perfect10', name: '10 из 10', cond: '10 дежурств без пропусков и побегов', earned: c.present >= 10 && (c.absent + c.escaped) === 0 },
-      { id: 'sub', name: 'Выручил группу', cond: 'Выйти на дежурство вместо другого', earned: c.subbed }
+      { id: 'first', name: 'Первое дежурство', cond: 'Отдежурить хотя бы раз', earned: c.present >= 1, progress: Math.min(c.present, 1) + '/1' },
+      { id: 'perfect10', name: '10 из 10', cond: '10 дежурств без пропусков и побегов', earned: c.present >= 10 && (c.absent + c.escaped) === 0, progress: Math.min(c.present, 10) + '/10' },
+      { id: 'sub', name: 'Выручил группу', cond: 'Выйти на дежурство вместо другого', earned: c.subbed, progress: (c.subbed ? '1' : '0') + '/1' }
     ];
   },
   sectionHTML(log, personId){
@@ -2231,7 +2238,7 @@ const Achv = {
     return `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Достижения</div>
       <p class="body2">Серия без пропусков: <b>${st}</b></p>
       <div class="achv-chips">${badges.map(b =>
-        `<span class="achv-chip${b.earned ? ' earned' : ' locked'}">${b.earned ? '✓ ' : ''}${esc(b.name)}${b.earned ? '' : ' — ' + esc(b.cond)}</span>`).join('')}</div></div>`;
+        `<span class="achv-chip${b.earned ? ' earned' : ' locked'}">${b.earned ? '✓ ' : ''}${esc(b.name)}${b.earned ? '' : ' — ' + esc(b.progress) + ' · ' + esc(b.cond)}</span>`).join('')}</div></div>`;
   }
 };
 const Authz = {
@@ -2570,6 +2577,20 @@ const BulkAdd = {
     w.querySelector('#bkDone').onclick = async () => { closeSheet(); await Store.loadGroup(); render(); };
   }
 };
+/* ordo-149: глубокая ссылка ?group=<id> — открыть очередь группы после входа.
+   Неизвестный id или чужая группа — игнорируется, открывается своя группа. */
+const DeepLink = {
+  groupParam(){
+    try{ return new URLSearchParams(location.search).get('group') || ''; }catch(_){ return ''; }
+  },
+  clearGroupParam(){
+    try{
+      const u = new URL(location.href);
+      u.searchParams.delete('group');
+      history.replaceState(null, '', u.pathname + (u.search ? u.search : '') + (u.hash || ''));
+    }catch(_){}
+  }
+};
 /* приём ссылки ?invite= : залогиненным — подтверждение, незалогиненным — форма */
 const Invite = {
   param(){
@@ -2891,7 +2912,7 @@ function shell(content, active){
       <button class="iconbtn themebtn" id="themeBtn" aria-label="Переключить тему"></button>
     </div>
   </div></div>
-  ${S.demo ? `<div class="demobanner"><span style="flex:1;min-width:150px">${S.demoLeader ? 'Демо-режим · вы — староста' : 'Демо-режим · данные вымышлены'}</span><button class="demobanner-btn${S.demoLeader ? ' on' : ''}" id="demoLeaderTgl" type="button" aria-pressed="${S.demoLeader ? 'true' : 'false'}">${S.demoLeader ? 'Смотреть как студент' : 'Смотреть как староста'}</button><button class="demobanner-btn" id="demoExit" type="button">Выйти из демо</button></div>` : ''}
+  ${S.demo ? `<div class="demobanner"><span style="flex:1;min-width:0">Демо-режим</span><button class="demobanner-btn${S.demoLeader ? ' on' : ''}" id="demoLeaderTgl" type="button" aria-pressed="${S.demoLeader ? 'true' : 'false'}">${S.demoLeader ? 'Как студент' : 'Как староста'}</button><button class="demobanner-btn" id="demoExit" type="button">Выйти</button></div>` : ''}
   <main class="screen" id="main" tabindex="-1"><div class="wrap${_vin}">${content}</div></main>
   <nav class="tabbar" aria-label="Навигация"><div class="tabbar-in">
     ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}"${active===k?' aria-current="page"':''}>${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}${k==='profile' && EmailSwitch.needsAction() ? `<span class="bdg-dot"></span>` : ''}</button>`).join('')}
@@ -2994,11 +3015,27 @@ function shortNames(pair){
     return surnames ? parts[0] : (parts[1] || parts[0]);
   });
 }
+/* ordo-149: подсказка «Добавить на экран Домой» — один раз, только в мобильном
+   браузере и только пока сайт не добавлен (standalone). PWA-мета уже в шапке. */
+function installHintHtml(){
+  let ua = '';
+  try{ ua = (typeof navigator !== 'undefined' && navigator.userAgent) || ''; }catch(_){}
+  const ios = /iPhone|iPad|iPod/.test(ua) || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  let standalone = false;
+  try{ standalone = !!navigator.standalone || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); }catch(_){}
+  if(standalone || (!ios && !android)) return '';
+  try{ if(localStorage.getItem('ordo-install-dismissed') === '1') return ''; }catch(_){}
+  const steps = ios ? 'кнопка «Поделиться» → «На экран “Домой”»' : 'меню браузера → «Добавить на экран Домой»';
+  return `<div class="notice" id="installHint" style="margin-top:16px">Добавьте Ordo на экран «Домой», чтобы убрать панели браузера: ${steps}. <button class="linkbtn" id="installHide">Скрыть</button></div>`;
+}
+
 function vHome(){
   const now = S.state.current;
   const q = currentQueue();
   const next = q.slice(0, 2);
   const dnames = debtorIds().map(id => S.people.find(p => p.id === id)?.name).filter(Boolean);
+  const me = S.people.find(p => p.user_id === S.user?.id);
   const meIdx = myPosition();
   const paused = S.group?.settings?.paused;
 
@@ -3054,8 +3091,10 @@ function vHome(){
   const debtLine = dnames.length
     ? `<p class="tiny" style="margin-top:10px">Вне очереди (долг): ${dnames.map(n => `<span style="white-space:nowrap">${esc(n)}</span>`).join(', ')}</p>` : '';
   /* unlinked account: staff are never in the duty roster, so no link prompt */
+  /* ordo-149: дата следующего дежурства — на главной (прогноз уже был в профиле) */
+  const fc = (!paused && me && meIdx >= 0 && !debtorIds().includes(me.id)) ? Fair.forecastText(meIdx) : '';
   const meLine = meIdx >= 0
-    ? `<p class="body2" style="margin-top:22px">Вы <b>№${meIdx + 1} из ${q.length}</b> в очереди</p>`
+    ? `<p class="body2" style="margin-top:22px">Вы <b>№${meIdx + 1} из ${q.length}</b> в очереди${paused ? ' · очередь на паузе' : (me && debtorIds().includes(me.id)) ? ' · вне очереди: долг' : fc ? ` · следующее дежурство <b>${esc(fc)}</b>` : ''}</p>`
     : '';
   /* ordo-129-fair: индекс справедливости видят все.
      ordo-147: карточка — крупное N/100 с цветом по порогам, пояснение, что значит
@@ -3064,13 +3103,15 @@ function vHome(){
   const fairLine = fair.value == null
     ? `<div class="faircard"><div class="fair-top"><span class="eyebrow">Индекс справедливости</span><span class="fair-num">—</span></div><p class="body2" style="margin-top:10px">Пока нет данных.</p></div>`
     : `<div class="faircard"><div class="fair-top"><span class="eyebrow">Индекс справедливости</span><span class="fair-num ${Fair.band(fair.value)}">${fair.value}<span class="fair-max">/100</span></span></div>
-      <div class="fairbar" aria-hidden="true"><i style="width:${fair.value}%"></i></div>
+      <div class="fairbar ${Fair.band(fair.value)}" aria-hidden="true"><i style="width:${fair.value}%"></i></div>
       <p class="body2" style="margin-top:10px">Чем ближе показатель к 100, тем равномернее распределена нагрузка.</p>
-      <p class="tiny" style="margin-top:6px">Средняя нагрузка: ${Fair.avgText(fair)} · Диапазон: от ${fair.min} до ${fair.max}</p></div>`;
+      <p class="tiny" style="margin-top:6px">Средняя нагрузка: ${Fair.avgText(fair)} · Диапазон: от ${fair.min} до ${fair.max} дежурств</p>
+      <p class="tiny" style="margin-top:6px">Формула: 100 × (1 − (разрыв − 1) ÷ (макс + мин)), где разрыв = макс − мин. Разрыв в одно дежурство — идеально.</p></div>`;
 
   const checkHtml = now ? Check.sectionHTML(now) : '';
-  const html = `${hero}${overdueHtml}${liveMarks}${checkHtml}${action}${nextLine}${meLine}${debtLine}${fairLine}`;
+  const html = `${hero}${installHintHtml()}${overdueHtml}${liveMarks}${checkHtml}${action}${nextLine}${meLine}${debtLine}${fairLine}`;
   shell(html, 'home');
+  const ih = document.getElementById('installHide'); if(ih) ih.onclick = () => { try{ localStorage.setItem('ordo-install-dismissed', '1'); }catch(_){} const el = document.getElementById('installHint'); if(el) el.remove(); };
   Check.bind(now);
   const sb = $('#startBtn'); if(sb) sb.onclick = () => { if(sb.dataset.closed) toast('Назначение доступно в будни с 8:00 до 16:30.'); else Duty.start(); };
   const fb = $('#finishBtn'); if(fb) fb.onclick = () => Duty.finish();
@@ -3085,6 +3126,19 @@ function vHome(){
     queueMarkSave();
   });
   const gq = $('#goQueue'); if(gq) gq.onclick = () => { S.view = 'queue'; render(); };
+}
+
+/* ordo-149: почему человек на этой позиции — последняя запись журнала, где он упомянут
+   (перестановка старостой или дежурство, после которого он ушёл в конец очереди) */
+function whyHere(p){
+  const log = S.state.log || [];
+  for(let k = log.length - 1; k >= 0; k--){
+    const en = log[k];
+    if(!en) continue;
+    if((en.people || []).some(it => it && it.id === p.id)) return en.action || '';
+    if(en.action && en.action.includes(p.name)) return en.action;
+  }
+  return '';
 }
 
 /* ---------------- queue ---------------- */
@@ -3111,10 +3165,17 @@ function vQueue(){
   }).join('');
   const head = `<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Очередь</h1>
     <span style="display:flex;gap:4px;align-items:baseline"><button class="linkbtn" id="qrBtn">QR на дверь</button>${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</span></div>
-    <p class="body2">${q.length} ${peopleWord(q.length)}</p>`;
+    <p class="body2">${q.length} ${peopleWord(q.length)}</p>
+    <p class="tiny" style="margin-top:4px">Порядок — история дежурств и перестановки старосты. Нажми на человека, чтобы узнать, почему он здесь.</p>`;
   shell(`${head}<div class="sec qlist" id="qList" style="margin-top:16px">${rows || '<p class="body2">Пока пусто.</p>'}</div>`, 'queue');
   const t = $('#ordTgl'); if(t) t.onclick = () => { S.orderMode = !S.orderMode; render(); };
   const qb = $('#qrBtn'); if(qb) qb.onclick = () => { S.view = 'qr'; render(); };
+  /* ordo-149: тап по строке — почему человек здесь (последняя запись журнала о нём) */
+  document.querySelectorAll('#qList .qrow').forEach(r => r.onclick = () => {
+    const p = S.people.find(x => x.id === r.dataset.pid);
+    if(!p) return;
+    toast(whyHere(p) || 'В очереди с самого начала — перестановок не было.');
+  });
   document.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
     const [id, d] = b.dataset.mv.split('|');
     Duty.move(id, +d);
@@ -3130,7 +3191,7 @@ function vQueue(){
   }));
 }
 
-/* ---------------- QR на дверь: ссылка на главную сайта ----------------
+/* ---------------- QR на дверь: ссылка на очередь группы ----------------
    ordo-134-qrtg: свой рендерер в стиле Telegram-карточки — закруглённые
    модули (горизонтальные прогоны-«бруски»), закруглённые паттерны-поисковики.
    ordo-135: корона из центра убрана — чистый QR, центр —
@@ -3138,9 +3199,12 @@ function vQueue(){
    ничего не закрывает).
    ordo-137: имён на карточке нет (ни в canvas, ни в DOM/печати) —
    «Сегодня дежурит» / «Далее в очереди» протухают за день, а QR на дверь
-   вне времени: только группа, QR, ORDO, URL и подсказка. */
+   вне времени: только группа, QR, ORDO, URL и подсказка.
+   ordo-149: QR ведёт в очередь группы (?group=), а не в корень сайта;
+   «Ordo» — только подпись под кодом, сверху один заголовок «Дежурства». */
 const Qr = {
-  url(){ return location.origin + location.pathname; },
+  /* ordo-149: ссылка на очередь группы, а не в корень — сосканировавший сразу видит очередь */
+  url(){ return location.origin + location.pathname + (S.group?.id ? '?group=' + encodeURIComponent(S.group.id) : ''); },
   /* матрица QR-кода (qrcode-generator, коррекция 'M') — общая для SVG и PNG */
   matrix(url){
     const qr = qrcode(0, 'M');
@@ -3200,12 +3264,9 @@ const Qr = {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, W);
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     const font = (w, px) => `${w} ${px}px -apple-system, system-ui, sans-serif`;
-    ctx.fillStyle = '#555'; ctx.font = font(600, 28);
-    /* ordo-139: шапка — просто «Ordo», без группы: QR ведёт на главную
-       сайта, а не в группу, и название группы сверху вводило в заблуждение */
-    ctx.fillText('Ordo', cx, 92);
+    /* ordo-149: «Ordo» — только подпись под кодом; сверху один заголовок «Дежурства» */
     ctx.fillStyle = '#000'; ctx.font = font(800, 64);
-    ctx.fillText('Дежурства', cx, 168);
+    ctx.fillText('Дежурства', cx, 150);
     /* QR: та же геометрия, что в svgFor (прогоны-«бруски», поисковики, чистый центр) */
     const qr = Qr.matrix(d.url);
     const n = qr.getModuleCount(), m = 4;
@@ -3276,7 +3337,6 @@ const Qr = {
 function vQr(){
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">QR на дверь</h1></div>
     <div class="qr-card" id="qrCard">
-      <div class="eyebrow">Ordo</div>
       <h2 class="qr-title">Дежурства</h2>
       <div class="qr-box" id="qrBox" role="img" aria-label="QR-код со ссылкой на сайт Ordo"></div>
       <div class="qr-brand">Ordo</div>
@@ -3408,8 +3468,12 @@ async function vRequests(){
   const staff = isStaff();
   let list = document.getElementById('rqList');
   if(!list){
-    /* first entry: build chrome; re-renders only refill the list (no scroll jump) */
+    /* ordo-149: пояснение, что здесь решается, — название обещало заявки, а внутри только связь */
+    const rqHint = staff ? 'Заявки на удаление участника решаются здесь — одобряет старший староста.'
+      : (!S.demo && isLeader()) ? 'Твои заявки на удаление — ниже, их решает старший староста. Обратная связь — в Telegram.'
+      : 'Удаление участника оформляет староста группы, решение принимает старший староста. Здесь — только обратная связь.';
     shell(`<h1 class="stitle" style="margin-top:4px">Обращения</h1>
+      <p class="body2" style="margin-top:10px">${rqHint}</p>
       <div class="rows" style="margin-top:16px"><div class="row" style="flex-direction:column;align-items:stretch;gap:6px"><div class="grow"><b>Обратная связь</b><div class="sub">Что-то сломалось или есть идея — напишите в Telegram.</div></div><button class="btn btn-p" id="fbMail" style="min-height:44px">Написать в Telegram</button></div></div>
       ` +
       (staff ? `<div id="rqBody"><div class="eyebrow" style="margin:20px 0 4px">Заявки · ожидают решения</div><div id="rqList"></div></div>`
@@ -3474,7 +3538,7 @@ const Vol = {
   async signup(id){ if(S.demo) throw new Error('В демо запись недоступна'); const r = await db.rpc('volunteer_signup', { p_event:id }); if(r.error) throw r.error; return r.data; },
   async cancel(id){ if(S.demo) throw new Error('В демо запись недоступна'); const r = await db.rpc('volunteer_cancel', { p_event:id }); if(r.error) throw r.error; }
 };
-const VOL_ST = { pending:['Ожидает','amber'], approved:['Подтверждено','green'], rejected:['Отклонено','red'], attended:['Был(а)','green'], absent:['Не был(а)','red'] };
+const VOL_ST = { pending:['Ожидает','amber'], approved:['Подтверждено','green'], rejected:['Отклонено','red'], attended:['Был','green'], absent:['Не был','red'] };
 async function vVolunteer(){
   let list = document.getElementById('volList');
   if(!list){
@@ -3606,7 +3670,7 @@ const VolM = {
           const info = VOL_ST[x.o_status];
           const acts = x.o_status === 'pending'
             ? [['approved','Подтвердить','btn-q'],['rejected','Отклонить','btn-danger-q']]
-            : x.o_status === 'approved' ? [['attended','Был(а)','btn-q'],['absent','Не был(а)','btn-danger-q']] : [];
+            : x.o_status === 'approved' ? [['attended','Был','btn-q'],['absent','Не был','btn-danger-q']] : [];
           return `<div class="row" style="align-items:flex-start"><div class="grow">
             <b>${esc(x.o_name)}</b>
             <div class="sub">${esc(x.o_group || '')}</div>
@@ -3738,16 +3802,16 @@ function vProfile(){
   shell(`
 
     ${me ? `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Мои дежурства</div>
-      <div class="rows"><div class="row"><div class="grow">Был(а)</div><b>${pr}</b></div>
+      <div class="rows"><div class="row"><div class="grow">Был</div><b>${pr}</b></div>
       <div class="row"><div class="grow">Не было</div><b>${ab}</b></div>
-      <div class="row"><div class="grow">Сбежал(а)</div><b>${es}</b></div>
+      <div class="row"><div class="grow">Сбежал</div><b>${es}</b></div>
       <div class="row"><div class="grow">Всего дежурств</div><b>${pr + ab + es}</b></div>
       <div class="row"><div class="grow">Заменял других</div><b>${subN}</b></div>
       <div class="row"><div class="grow">Среднее время смены</div><b>—</b></div>
       <div class="row"><div class="grow">Индекс справедливости</div><b>${fair.value == null ? '—' : fair.value}</b></div>
       ${fcLine}</div>
       ${fair.value == null ? '<p class="tiny" style="margin-top:8px">Индекс справедливости: пока нет данных.</p>' : `<p class="tiny" style="margin-top:8px">${esc(Fair.rangeText(fair))} · 100 — идеально ровно</p>`}
-      ${myIdx >= 0 && !paused && !iOwe ? '<p class="tiny" style="margin-top:6px">Дата сдвинется, если очередь изменится.</p>' : ''}</div>` : ''}
+      ${myIdx >= 0 && !paused && !iOwe ? '<p class="tiny" style="margin-top:6px">Дата сдвинется, если очередь изменится.</p>' : ''}<p class="tiny" style="margin-top:6px">«Не было» — не пришёл на дежурство, «Сбежал» — ушёл раньше.</p>}</div>` : ''}
 
     ${me ? Achv.sectionHTML(log, me.id) : ''}
 
