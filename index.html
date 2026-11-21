@@ -29,7 +29,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-146';})();</script>
+window.__ORDO_BUILD='ordo-147';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -59,6 +59,7 @@ body.light{
   --fill:rgba(120,120,128,.15);
   --accent:#007AFF; --accent-ink:#ffffff; --accent-soft:rgba(0,122,255,.12);
   --amber:#A86E00; /* темнее, чем в тёмной: на белом яркий слепит */
+  --green:#1E7D32; /* темнее, чем в тёмной: на белом яркий слепит */
   --sheet:#ffffff;
   --bar:rgba(250,250,252,.8);
 }
@@ -396,6 +397,14 @@ input::-ms-reveal,input::-ms-clear{display:none}
 /* ordo-129-fair */
 .fairbar{height:6px;border-radius:99px;background:var(--fill);overflow:hidden;margin-top:8px}
 .fairbar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
+/* ordo-147: карточка индекса — крупное N/100, пояснение, средняя и диапазон */
+.faircard{margin-top:22px;background:var(--bg2);border-radius:18px;padding:16px}
+body:not(.light) .faircard{border:1px solid var(--hair)}
+.faircard .fairbar{margin-top:12px}
+.fair-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.fair-num{font-size:32px;font-weight:800;line-height:1;letter-spacing:-.01em;white-space:nowrap}
+.fair-num .fair-max{font-size:18px;font-weight:700;opacity:.55}
+.fair-num.good{color:var(--green)} .fair-num.warn{color:var(--amber)} .fair-num.bad{color:var(--red)}
 /* ordo-134-qrtg: QR на дверь в стиле Telegram-карточки — белая скруглённая
    карточка, строго ч/б, в обеих темах и при печати */
 .qr-card{background:#fff;color:#000;border-radius:32px;padding:28px 22px 26px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.22)}
@@ -1984,8 +1993,16 @@ const Fair = {
   },
   /* «от 3 до 7, в среднем 5» */
   rangeText(f){
-    const avg = Number.isInteger(f.avg) ? String(f.avg) : f.avg.toFixed(1).replace('.', ',');
-    return `от ${f.min} до ${f.max}, в среднем ${avg}`;
+    return `от ${f.min} до ${f.max}, в среднем ${Fair.avgText(f)}`;
+  },
+  /* «3,1» — средняя с запятой, как в rangeText */
+  avgText(f){
+    return Number.isInteger(f.avg) ? String(f.avg) : f.avg.toFixed(1).replace('.', ',');
+  },
+  /* цвет крупного числа индекса: ≥80 — хорошо, 50–79 — средне, <50 — плохо (ordo-147) */
+  band(v){
+    if(v == null) return '';
+    return v >= 80 ? 'good' : v >= 50 ? 'warn' : 'bad';
   },
   /* Сколько раз человек дежурил за другого. В журнале замена пишется только так:
      Duty.finish кладёт заменяющего обычной записью, а сразу за ней — заменённого с sub:true,
@@ -3024,22 +3041,27 @@ function vHome(){
     : `<div class="notice warn">Дежурство просрочено: смена закончилась в 16:30.</div>`;
   const nextLine = next.length
     ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis">Далее: <b>${next.map(p => esc(shortName(p))).join(', ')}</b> →</button>` : '';
+  /* ordo-147: позиция — с общим числом («№9 из 9»); должники — отдельным блоком
+     после позиции, а не строкой вперемешку с ней. */
   const debtLine = dnames.length
-    ? `<p class="body2" style="margin-top:14px">Долг: ${dnames.map(n => `<span style="white-space:nowrap">${esc(n)}</span>`).join(', ')} — идут вне очереди.</p>` : '';
+    ? `<p class="tiny" style="margin-top:10px">Вне очереди (долг): ${dnames.map(n => `<span style="white-space:nowrap">${esc(n)}</span>`).join(', ')}</p>` : '';
   /* unlinked account: staff are never in the duty roster, so no link prompt */
   const meLine = meIdx >= 0
-    ? `<p class="tiny" style="margin-top:22px">Вы №${meIdx + 1} в очереди</p>`
+    ? `<p class="body2" style="margin-top:22px">Вы <b>№${meIdx + 1} из ${q.length}</b> в очереди</p>`
     : '';
-  /* ordo-129-fair: индекс справедливости видят все */
+  /* ordo-129-fair: индекс справедливости видят все.
+     ordo-147: карточка — крупное N/100 с цветом по порогам, пояснение, что значит
+     число, средняя нагрузка и диапазон (были мелкой строкой + «100 — идеально ровно»). */
   const fair = Fair.index(S.state.log, S.people);
   const fairLine = fair.value == null
-    ? `<p class="tiny" style="margin-top:14px">Индекс справедливости: <b>—</b> · пока нет данных</p>`
-    : `<p class="tiny" style="margin-top:14px">Индекс справедливости: <b>${fair.value}</b> · ${esc(Fair.rangeText(fair))}</p>
+    ? `<div class="faircard"><div class="fair-top"><span class="eyebrow">Индекс справедливости</span><span class="fair-num">—</span></div><p class="body2" style="margin-top:10px">Пока нет данных.</p></div>`
+    : `<div class="faircard"><div class="fair-top"><span class="eyebrow">Индекс справедливости</span><span class="fair-num ${Fair.band(fair.value)}">${fair.value}<span class="fair-max">/100</span></span></div>
       <div class="fairbar" aria-hidden="true"><i style="width:${fair.value}%"></i></div>
-      <p class="tiny" style="margin-top:6px">100 — идеально ровно</p>`;
+      <p class="body2" style="margin-top:10px">Чем ближе показатель к 100, тем равномернее распределена нагрузка.</p>
+      <p class="tiny" style="margin-top:6px">Средняя нагрузка: ${Fair.avgText(fair)} · Диапазон: от ${fair.min} до ${fair.max}</p></div>`;
 
   const checkHtml = now ? Check.sectionHTML(now) : '';
-  const html = `${hero}${overdueHtml}${liveMarks}${checkHtml}${action}${nextLine}${debtLine}${meLine}${fairLine}`;
+  const html = `${hero}${overdueHtml}${liveMarks}${checkHtml}${action}${nextLine}${meLine}${debtLine}${fairLine}`;
   shell(html, 'home');
   Check.bind(now);
   const sb = $('#startBtn'); if(sb) sb.onclick = () => { if(sb.dataset.closed) toast('Назначение доступно в будни с 8:00 до 16:30.'); else Duty.start(); };
