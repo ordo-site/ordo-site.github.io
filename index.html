@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-158';})();</script>
+window.__ORDO_BUILD='ordo-159';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -133,7 +133,7 @@ a{color:var(--accent);text-decoration:none}
 .bhome{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .gsel{display:flex;align-items:center;gap:5px;background:var(--fill);border:0;border-radius:999px;padding:7px 12px;color:var(--sec);font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .gsel small{font-size:12.5px;font-weight:600}
-.gchev{font-size:9px;color:var(--ter)}
+.gchev{font-size:10px;color:var(--sec)}
 .gsel.gstatic{cursor:default}
 .gmenu{position:fixed;z-index:99990;min-width:210px;max-width:280px;overflow:hidden;background:var(--bg2);border:1px solid var(--hair);border-radius:16px;box-shadow:var(--shadow);animation:up .25s var(--spring)}
 .gmenu .gscroll{max-height:min(50vh,440px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:6px}
@@ -422,6 +422,16 @@ body:not(.light) .mecard{border:1px solid var(--hair)}
 .me-num{display:block;font-size:32px;font-weight:800;line-height:1.1;letter-spacing:-.01em;margin-top:8px}
 .me-num .me-of{font-size:18px;font-weight:700;opacity:.55}
 .mecard .body2{display:block;margin-top:8px}
+.mecard .fairbar{margin-top:12px}
+/* ordo-159: карточка «Следующие дежурные» — та же семья, что .mecard */
+.nextcard{display:block;width:100%;text-align:left;background:var(--bg2);border:0;border-radius:18px;padding:16px;margin-top:22px;cursor:pointer;font:inherit;color:inherit}
+body:not(.light) .nextcard{border:1px solid var(--hair)}
+.nextcard .eyebrow{display:block;margin-bottom:10px}
+.next-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:16px}
+.next-row + .next-row{border-top:1px solid var(--hair)}
+.next-names{font-weight:600}
+.next-date{color:var(--sec);white-space:nowrap}
+.nextcard .tiny{display:block;color:var(--sec)}
 .fair-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .fair-num{font-size:32px;font-weight:800;line-height:1;letter-spacing:-.01em;white-space:nowrap}
 .fair-num .fair-max{font-size:18px;font-weight:700;opacity:.55}
@@ -790,6 +800,25 @@ function currentQueue(){
   const active = q.filter(p => cur.has(p.id));
   const regular = q.filter(p => !cur.has(p.id) && !ds.has(p.id));
   return d.map(id => map.get(id)).filter(Boolean).concat(regular, active);
+}
+/* ordo-159: следующие пары для карточки на главной — та же сборка, что
+   в Duty.start: должник + первый обычный, иначе двое обычных. Текущая
+   пара исключена (она в конце currentQueue). Дата пары k — (k+1)-й будний
+   день от завтра: Fair.forecast(2*k) при парной математике. */
+function nextPairs(n){
+  const cur = new Set(S.state.current?.ids || []);
+  const q = currentQueue().filter(p => !cur.has(p.id));
+  const ds = new Set(debtorIds());
+  const D = q.filter(p => ds.has(p.id));
+  const R = q.filter(p => !ds.has(p.id));
+  const out = [];
+  while(out.length < n && (D.length || R.length)){
+    let pair;
+    if(D.length) pair = R.length ? [D.shift(), R.shift()] : D.splice(0, 2);
+    else pair = R.splice(0, 2);
+    if(pair.length) out.push(pair);
+  }
+  return out;
 }
 function myPosition(){
   const me = S.people.find(p => p.user_id === S.user?.id);
@@ -2036,21 +2065,42 @@ const Fair = {
     });
     return n;
   },
-  /* Дата N-го буднего дня, считая от завтра (сб/вс пропускаются); N = позиция в очереди (1-based).
-     posIdx — 0-based индекс из myPosition(), null — даты нет. */
+  /* Дата дежурства: пары по двое, одна пара в будний день. N = номер пары
+     (позиция/2, 0-based); считаем будни от завтра, сб/вс пропускаются.
+     posIdx — 0-based индекс из myPosition(), null — даты нет.
+     ordo-159: раньше считали posIdx+1 будних дней — как будто дежурит
+     по одному человеку в день; прогноз был вдвое дальше
+     (№15 из 23 показывал ~11 декабря вместо ~2 декабря). */
   forecast(posIdx, from){
     if(posIdx == null || posIdx < 0) return null;
     const d = new Date(from || new Date());
-    let left = posIdx + 1;
+    let left = Math.floor(posIdx / 2) + 1;
     while(left > 0){ d.setDate(d.getDate() + 1); const w = d.getDay(); if(w !== 0 && w !== 6) left--; }
     return d;
+  },
+  /* «2 декабря (среда)» — без «примерно», для строк, где оговорка уже рядом */
+  dateText(d){
+    if(!d) return '';
+    const dm = d.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
+    const wd = d.toLocaleDateString('ru-RU', { weekday:'long' });
+    return `${dm} (${wd})`;
   },
   forecastText(posIdx, from){
     const d = Fair.forecast(posIdx, from);
     if(!d) return '';
-    const dm = d.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
-    const wd = d.toLocaleDateString('ru-RU', { weekday:'long' });
-    return `~${dm} (${wd})`;
+    return `примерно ${Fair.dateText(d)}`;
+  },
+  /* «через 11 дней» / «завтра» / «сегодня» — от сегодня до даты прогноза */
+  countdownText(d, from){
+    if(!d) return '';
+    const a = new Date(from || new Date()); a.setHours(0, 0, 0, 0);
+    const b = new Date(d); b.setHours(0, 0, 0, 0);
+    const n = Math.round((b - a) / 86400000);
+    if(n <= 0) return 'сегодня';
+    if(n === 1) return 'завтра';
+    const m10 = n % 10, m100 = n % 100;
+    const w = (m10 === 1 && m100 !== 11) ? 'день' : (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) ? 'дня' : 'дней';
+    return `через ${n} ${w}`;
   }
 };
 /* ---------------- ordo-131: чек-лист дежурства + заметки (feat 6) ----------------
@@ -3050,7 +3100,6 @@ function installHintHtml(){
 function vHome(){
   const now = S.state.current;
   const q = currentQueue();
-  const next = q.slice(0, 2);
   const dnames = debtorIds().map(id => S.people.find(p => p.id === id)?.name).filter(Boolean);
   const me = S.people.find(p => p.user_id === S.user?.id);
   const meIdx = myPosition();
@@ -3101,23 +3150,46 @@ function vHome(){
   const overdueHtml = !overdue ? '' : isLeader()
     ? `<div class="notice warn" role="alert">Дежурство просрочено: смена закончилась в 16:30. Завершите его и отметьте, кто был. <button class="linkbtn" id="overdueFinish">Завершить →</button></div>`
     : `<div class="notice warn">Дежурство просрочено: смена закончилась в 16:30.</div>`;
-  const nextLine = next.length
-    ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis">Далее: <b>${shortNames(next).map(n => esc(n)).join(', ')}</b> →</button>` : '';
+  /* ordo-159: «Далее»-ссылка заменена карточкой «Следующие дежурные»:
+     три следующие пары с датами; тап ведёт на вкладку «Очередь».
+     Даты примерные — оговорка одной строкой под списком. */
+  const pairs = nextPairs(3);
+  const nextCard = pairs.length
+    ? `<button class="nextcard" id="nextCard"><span class="eyebrow">Следующие дежурные</span>
+      ${pairs.map((pr, i) => `<span class="next-row"><span class="next-names">${shortNames(pr).map(n => esc(n)).join(', ')}</span><span class="next-date">${esc(Fair.dateText(Fair.forecast(2 * i)))}</span></span>`).join('')}
+      <span class="tiny">Даты примерные — очередь может сдвинуться.</span></button>`
+    : '';
   /* ordo-147: позиция — с общим числом («№9 из 9»); должники — отдельным блоком
      после позиции, а не строкой вперемешку с ней. */
   const debtLine = dnames.length
     ? `<p class="tiny" style="margin-top:10px">Вне очереди (долг): ${dnames.map(n => `<span style="white-space:nowrap">${esc(n)}</span>`).join(', ')}</p>` : '';
   /* unlinked account: staff are never in the duty roster, so no link prompt */
   /* ordo-149: дата следующего дежурства — на главной (прогноз уже был в профиле) */
-  const fc = (!paused && me && meIdx >= 0 && !debtorIds().includes(me.id)) ? Fair.forecastText(meIdx) : '';
-  /* ordo-156: позиция — карточкой «Ваша очередь» вместо серой строки текста;
-     тап ведёт на вкладку «Очередь». Долг и пауза — второй строкой карточки. */
   const isDebtor = me && debtorIds().includes(me.id);
+  const inCurrent = me && (S.state.current?.ids || []).includes(me.id);
+  const fcDate = (!paused && me && meIdx >= 0 && !isDebtor && !inCurrent) ? Fair.forecast(meIdx) : null;
+  const fc = fcDate ? Fair.forecastText(meIdx) : '';
+  /* ordo-156: позиция — карточкой «Ваша очередь» вместо серой строки текста;
+     тап ведёт на вкладку «Очередь». ordo-159: полоса прогресса (N из M),
+     обратный отсчёт («через 11 дней»), дата жирным; кто дежурит сегодня —
+     так и написано, без прогноза. */
+  const pct = q.length ? Math.round((meIdx + 1) / q.length * 100) : 0;
   const meCard = meIdx >= 0
     ? `<button class="mecard" id="meCard"><span class="eyebrow">Ваша очередь</span>
       <span class="me-num">№${meIdx + 1} <span class="me-of">из ${q.length}</span></span>
-      <span class="body2">${paused ? 'Очередь на паузе' : isDebtor ? 'Вне очереди: долг' : fc ? `Следующее дежурство — ${esc(fc)}` : 'Вы в очереди'}</span></button>`
+      <span class="fairbar" aria-hidden="true"><i style="width:${pct}%"></i></span>
+      <span class="body2">${paused ? 'Очередь на паузе' : isDebtor ? 'Вне очереди: долг' : inCurrent ? 'Вы дежурите сегодня' : fc ? `Следующее дежурство — <b>${esc(fc)}</b> · ${esc(Fair.countdownText(fcDate))}` : 'Вы в очереди'}</span></button>`
     : '';
+  /* ordo-159: кто дежурил последним — последняя засчитанная запись журнала */
+  const lastEntry = (S.state.log || []).filter(en => en && en.counted && Array.isArray(en.people) && en.people.length).pop();
+  const lastLine = lastEntry ? (() => {
+    const ids = lastEntry.people.filter(it => !it.sub).map(it => it.id).slice(0, 2);
+    const ps = ids.map(id => S.people.find(p => p.id === id)).filter(Boolean);
+    if(!ps.length) return '';
+    const at = new Date(lastEntry.at);
+    const dm = isNaN(at) ? '' : at.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
+    return `<p class="tiny" style="margin-top:14px">Последнее дежурство: ${shortNames(ps).map(n => esc(n)).join(', ')}${dm ? ` — ${esc(dm)}` : ''}</p>`;
+  })() : '';
   /* ordo-129-fair: индекс справедливости видят все.
      ordo-147: карточка — крупное N/100 с цветом по порогам, пояснение, что значит
      число, средняя нагрузка и диапазон (были мелкой строкой + старая подпись). */
@@ -3135,7 +3207,7 @@ function vHome(){
     : '';
 
   const checkHtml = now ? Check.sectionHTML(now) : '';
-  const html = `${hero}${installHintHtml()}${overdueHtml}${liveMarks}${checkHtml}${action}${nextLine}${meCard}${debtLine}${fairLine}`;
+  const html = `${hero}${installHintHtml()}${overdueHtml}${liveMarks}${checkHtml}${action}${nextCard}${meCard}${lastLine}${debtLine}${fairLine}`;
   shell(html, 'home');
   const ih = document.getElementById('installHide'); if(ih) ih.onclick = () => { try{ localStorage.setItem('ordo-install-dismissed', '1'); }catch(_){} const el = document.getElementById('installHint'); if(el) el.remove(); };
   Check.bind(now);
@@ -3151,7 +3223,7 @@ function vHome(){
     (S._pendingMarks || (S._pendingMarks = {}))[pid] = st;
     queueMarkSave();
   });
-  const gq = $('#goQueue'); if(gq) gq.onclick = () => { S.view = 'queue'; render(); };
+  const nc = $('#nextCard'); if(nc) nc.onclick = () => { S.view = 'queue'; render(); };
   const mc = $('#meCard'); if(mc) mc.onclick = () => { S.view = 'queue'; render(); };
 }
 
