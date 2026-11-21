@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-155';})();</script>
+window.__ORDO_BUILD='ordo-156';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -415,6 +415,13 @@ input::-ms-reveal,input::-ms-clear{display:none}
 .faircard{margin-top:22px;background:var(--bg2);border-radius:18px;padding:16px}
 body:not(.light) .faircard{border:1px solid var(--hair)}
 .faircard .fairbar{margin-top:12px}
+/* ordo-156: карточка «Ваша очередь» — та же визуальная семья, что .faircard */
+.mecard{display:block;width:100%;text-align:left;background:var(--bg2);border:0;border-radius:18px;padding:16px;margin-top:22px;cursor:pointer;font:inherit;color:inherit}
+body:not(.light) .mecard{border:1px solid var(--hair)}
+.mecard .eyebrow{display:block}
+.me-num{display:block;font-size:32px;font-weight:800;line-height:1.1;letter-spacing:-.01em;margin-top:8px}
+.me-num .me-of{font-size:18px;font-weight:700;opacity:.55}
+.mecard .body2{display:block;margin-top:8px}
 .fair-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .fair-num{font-size:32px;font-weight:800;line-height:1;letter-spacing:-.01em;white-space:nowrap}
 .fair-num .fair-max{font-size:18px;font-weight:700;opacity:.55}
@@ -3101,8 +3108,13 @@ function vHome(){
   /* unlinked account: staff are never in the duty roster, so no link prompt */
   /* ordo-149: дата следующего дежурства — на главной (прогноз уже был в профиле) */
   const fc = (!paused && me && meIdx >= 0 && !debtorIds().includes(me.id)) ? Fair.forecastText(meIdx) : '';
-  const meLine = meIdx >= 0
-    ? `<p class="body2" style="margin-top:22px">Вы <b>№${meIdx + 1} из ${q.length}</b> в очереди${paused ? ' · очередь на паузе' : (me && debtorIds().includes(me.id)) ? ' · вне очереди: долг' : fc ? ` · следующее дежурство <b>${esc(fc)}</b>` : ''}</p>`
+  /* ordo-156: позиция — карточкой «Ваша очередь» вместо серой строки текста;
+     тап ведёт на вкладку «Очередь». Долг и пауза — второй строкой карточки. */
+  const isDebtor = me && debtorIds().includes(me.id);
+  const meCard = meIdx >= 0
+    ? `<button class="mecard" id="meCard"><span class="eyebrow">Ваша очередь</span>
+      <span class="me-num">№${meIdx + 1} <span class="me-of">из ${q.length}</span></span>
+      <span class="body2">${paused ? 'Очередь на паузе' : isDebtor ? 'Вне очереди: долг' : fc ? `Следующее дежурство — ${esc(fc)}` : 'Вы в очереди'}</span></button>`
     : '';
   /* ordo-129-fair: индекс справедливости видят все.
      ordo-147: карточка — крупное N/100 с цветом по порогам, пояснение, что значит
@@ -3121,7 +3133,7 @@ function vHome(){
     : '';
 
   const checkHtml = now ? Check.sectionHTML(now) : '';
-  const html = `${hero}${installHintHtml()}${overdueHtml}${liveMarks}${checkHtml}${action}${nextLine}${meLine}${debtLine}${fairLine}`;
+  const html = `${hero}${installHintHtml()}${overdueHtml}${liveMarks}${checkHtml}${action}${nextLine}${meCard}${debtLine}${fairLine}`;
   shell(html, 'home');
   const ih = document.getElementById('installHide'); if(ih) ih.onclick = () => { try{ localStorage.setItem('ordo-install-dismissed', '1'); }catch(_){} const el = document.getElementById('installHint'); if(el) el.remove(); };
   Check.bind(now);
@@ -3138,6 +3150,7 @@ function vHome(){
     queueMarkSave();
   });
   const gq = $('#goQueue'); if(gq) gq.onclick = () => { S.view = 'queue'; render(); };
+  const mc = $('#meCard'); if(mc) mc.onclick = () => { S.view = 'queue'; render(); };
 }
 
 /* ordo-149: почему человек на этой позиции — последняя запись журнала, где он упомянут
