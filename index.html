@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-156';})();</script>
+window.__ORDO_BUILD='ordo-157';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -446,7 +446,9 @@ body:not(.light) .mecard{border:1px solid var(--hair)}
   .wrap{max-width:100%}
   .sec-head{margin-bottom:4px}
   .qr-card,.qr-card *{color:#000!important;background:#fff!important;border-color:#000!important;box-shadow:none!important}
-  .qr-card{padding:0}
+  /* ordo-157: renderImg прячет DOM-карточку инлайн-стилем (display:none),
+     когда готова картинка, — без этого печать давала пустую страницу */
+  .qr-card{display:block!important;padding:0}
   .qr-title{font-size:28px}
   .qr-box{width:320px;max-width:80vw;margin:24px auto 0}
   /* модули и поисковики — в чёрный; белые просветы (.qr-lite: кольцо поисковика)
