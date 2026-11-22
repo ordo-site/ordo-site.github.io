@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-160';})();</script>
+window.__ORDO_BUILD='ordo-161';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -199,6 +199,7 @@ body:not(.light) .rows{border:1px solid var(--hair)}
 .row:last-child{border-bottom:0}
 button.row:active{background:var(--fill)}
 .row .grow{flex:1;min-width:0}
+.row b{max-width:65%;text-align:right}
 .row .sub{font-size:14px;color:var(--sec);margin-top:2px}
 .chev{color:var(--ter);font-size:20px;font-weight:300}
 
@@ -210,10 +211,13 @@ button.row:active{background:var(--fill)}
 .tag.green{background:rgba(48,209,88,.14);color:var(--green)}
 
 /* ---------- queue list ---------- */
-.qrow{display:flex;align-items:center;gap:14px;padding:15px 4px;border-bottom:1px solid var(--hair);cursor:pointer}
-.qrow:last-child{border-bottom:0}
-.qnum{font-size:15px;font-weight:600;color:var(--sec);width:30px;font-variant-numeric:tabular-nums}
-.qrow.me .qnum{color:var(--accent)}
+/* ordo-161: очередь — карточками, а не строками с разделителями:
+   нумерованный кружок, бейджи «долг»/«сейчас», свой ряд с синей рамкой */
+.qrow{display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:8px;background:var(--bg2);border:1px solid transparent;border-radius:16px;cursor:pointer}
+.qrow:last-child{margin-bottom:0}
+.qrow.me{border-color:var(--accent)}
+.qnum{flex:none;width:34px;height:34px;border-radius:50%;background:var(--fill);color:var(--sec);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.qrow.me .qnum{background:var(--accent);color:var(--accent-ink)}
 #verBar{position:fixed;top:calc(66px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:99995;display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--hair);border-radius:999px;padding:8px 8px 8px 16px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow);animation:vdown .35s var(--spring);max-width:calc(100vw - 32px)}
 #verBar .vtxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #verBar button{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;flex:none}
@@ -406,6 +410,35 @@ input::-ms-reveal,input::-ms-clear{display:none}
 .achv-bar>i{display:block;height:100%;border-radius:2px;background:var(--accent)}
 .achv.earned .achv-top b{color:var(--green)}
 .achv.earned .achv-bar>i{background:var(--green)}
+/* ordo-161: статистика профиля — сетка 2×2 карточек с иконками */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-card{background:var(--bg2);border-radius:16px;padding:14px;display:flex;align-items:center;gap:12px;min-width:0}
+.stat-ic{flex:none;width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700}
+.stat-ic.good{background:rgba(48,209,88,.14);color:var(--green)}
+.stat-ic.warn{background:rgba(255,214,10,.14);color:var(--amber)}
+.stat-ic.bad{background:rgba(255,69,58,.14);color:var(--red)}
+.stat-ic.total{background:var(--accent-soft);color:var(--accent)}
+.stat-lb{font-size:13px;font-weight:600;color:var(--sec);line-height:1.3;margin-top:2px}
+.stat-tx{flex:1;min-width:0}
+.stat-num{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+/* ordo-161: поиск и фильтр по истории в профиле */
+.hist-tools{display:flex;gap:10px;margin-bottom:12px}
+.hist-tools .inp{flex:1;min-width:0}
+.hist-tools select.inp{flex:0 0 150px}
+/* ordo-161: лендинг входа — тизер очереди (статичная иллюстрация) */
+.login-teaser{display:flex;align-items:center;gap:0;margin:0 0 28px}
+.t-pill{flex:none;background:var(--fill);color:var(--sec);font-size:15px;font-weight:600;padding:9px 18px;border-radius:999px}
+.t-pill.you{background:var(--accent);color:var(--accent-ink)}
+.t-line{flex:1;height:2px;background:var(--accent);opacity:.55;min-width:18px}
+/* ordo-161: лендинг входа — десктоп: две колонки (заголовок + карточка входа) */
+@media (min-width:760px){
+  .auth.land{max-width:980px;display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;text-align:left}
+  .auth.land h1{font-size:54px}
+  .auth.land .sub{margin-bottom:26px}
+  .auth.land .login-card{background:var(--bg2);border-radius:20px;padding:24px}
+  body:not(.light) .auth.land .login-card{border:1px solid var(--hair)}
+  .auth.land .foot{margin-top:26px}
+}
 /* ordo-129-fair */
 .fairbar{height:6px;border-radius:99px;background:var(--fill);overflow:hidden;margin-top:8px}
 .fairbar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
@@ -507,11 +540,14 @@ function renderAfterBoot(){
   render();
 }
 const fmt = s => { const d = new Date(s); return isNaN(d) ? String(s||'') : d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); };
+/* ordo-161: «18 ноября» — короткая дата без времени (для «почему он здесь») */
+const dateShort = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); };
 const plural = (n, one, few, many) => { const m10 = n % 10, m100 = n % 100;
   if(m10 === 1 && m100 !== 11) return one;
   if(m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
   return many; };
 const peopleWord = n => plural(n, 'человек', 'человека', 'человек');
+const recWord = n => plural(n, 'запись', 'записи', 'записей');
 const initials = n => esc(String(n||'?').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase());
 let toastT;
 function toast(m){
@@ -1215,26 +1251,33 @@ const Demo = {
 const Auth = {
   login(){
     root.innerHTML = `
-    <div class="auth">
-      <div class="rise brand" id="brandAuth" style="animation-delay:.02s;cursor:pointer">${MARK}<span><b>Ordo</b></span></div>
-      <h1 class="rise" style="animation-delay:.08s">Дежурство<br>без лишнего</h1>
-      <p class="sub rise" style="animation-delay:.14s">Войдите, чтобы открыть свою группу.</p>
-      <form id="loginForm" class="rise" style="animation-delay:.2s" novalidate>
-        <div class="err" id="loginErr"></div>
-        <div class="field"><label for="login">Логин</label>
-          <input class="inp" id="login" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="например, ivanov.a"></div>
-        <div class="field"><label for="pw">Пароль</label>
-          <div class="pwbox"><input class="inp" id="pw" type="password" autocomplete="current-password" placeholder="Пароль">
-          <button type="button" class="eyebtn" id="pwEye" aria-label="Показать пароль" tabindex="-1">${ICON.eye}</button></div></div>
-        <button class="btn btn-p" id="loginBtn" type="submit" style="margin-top:6px">Войти</button>
-      </form>
-      <button class="btn btn-q demo-attn" id="loginDemo" type="button">Посмотреть демо</button>
-      <p class="tiny" style="margin-top:10px;text-align:center">Демо: вымышленная группа, без регистрации.</p>
-      <div class="foot rise" style="animation-delay:.28s">
-        <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
-        <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a><span style="margin:0 10px">·</span><a href="https://t.me/mediocreep" target="_blank" rel="noopener" id="loginSupport">Поддержка</a></p>
-        <p class="tiny" style="margin-top:16px"><a href="#" id="loginDocs">Документы</a></p>
-        <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
+    <div class="auth land">
+      <div class="login-hero">
+        <div class="rise brand" id="brandAuth" style="animation-delay:.02s;cursor:pointer">${MARK}<span><b>Ordo</b></span></div>
+        <h1 class="rise" style="animation-delay:.08s">Дежурство<br>без лишнего</h1>
+        <p class="sub rise" style="animation-delay:.14s">Войдите, чтобы открыть свою группу.</p>
+        <div class="login-teaser rise" style="animation-delay:.18s" aria-hidden="true"><span class="t-pill">Аня</span><span class="t-line"></span><span class="t-pill">Макс</span><span class="t-line"></span><span class="t-pill you">Вы</span></div>
+      </div>
+      <div class="login-side">
+        <div class="login-card rise" style="animation-delay:.2s">
+          <form id="loginForm" novalidate>
+            <div class="err" id="loginErr"></div>
+            <div class="field"><label for="login">Логин</label>
+              <input class="inp" id="login" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="например, ivanov.a"></div>
+            <div class="field"><label for="pw">Пароль</label>
+              <div class="pwbox"><input class="inp" id="pw" type="password" autocomplete="current-password" placeholder="Пароль">
+              <button type="button" class="eyebtn" id="pwEye" aria-label="Показать пароль" tabindex="-1">${ICON.eye}</button></div></div>
+            <button class="btn btn-p" id="loginBtn" type="submit" style="margin-top:6px">Войти</button>
+          </form>
+        </div>
+        <button class="btn btn-q demo-attn" id="loginDemo" type="button">Посмотреть демо</button>
+        <p class="tiny" style="margin-top:10px;text-align:center">Демо: вымышленная группа, без регистрации.</p>
+        <div class="foot rise" style="animation-delay:.28s">
+          <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
+          <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a><span style="margin:0 10px">·</span><a href="https://t.me/mediocreep" target="_blank" rel="noopener" id="loginSupport">Поддержка</a></p>
+          <p class="tiny" style="margin-top:16px"><a href="#" id="loginDocs">Документы</a></p>
+          <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
+        </div>
       </div>
       <button class="iconbtn themebtn" id="loginTheme" aria-label="Переключить тему" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px"></button>
     </div>`;
@@ -2270,7 +2313,7 @@ const Achv = {
         if(ps[i + 1] && ps[i + 1].sub) subbed = true;
       }
     });
-    return { present, absent, escaped, subbed };
+    return { present, absent, escaped, subbed, total: present + absent + escaped };
   },
   /* текущая серия PRESENT подряд, считая с конца log; записи без меня и
      writeoff пропускаются, ABSENT/ESCAPED обрывают серию */
@@ -2286,25 +2329,57 @@ const Achv = {
     }
     return n;
   },
+  /* ordo-161: серия «был, хоть и ушёл раньше» — обрывается только отсутствием:
+     ESCAPED считается посещением (человек был, но ушёл досрочно) */
+  streakAttended(log, personId){
+    let n = 0;
+    for(let k = (log || []).length - 1; k >= 0; k--){
+      const en = log[k];
+      if(!en || en.writeoff || !Array.isArray(en.people)) continue;
+      const it = en.people.find(x => x && !x.sub && x.id === personId);
+      if(!it) continue;
+      if(it.status === STATUS.ABSENT) break;
+      n++;
+    }
+    return n;
+  },
+  /* ordo-161: 9 достижений (было 3). Пороги — как в форке klassio.
+     «Безупречный» = PRESENT подряд: понятия «ушёл досрочно» как отдельной
+     отметки в данных нет — побег и есть досрочный уход, его ловит streak. */
   badges(log, personId){
     const c = Achv.counts(log, personId);
+    const st = Achv.streak(log, personId);
+    const sa = Achv.streakAttended(log, personId);
+    const b = (id, name, cond, done, total) => ({ id, name, cond, earned: done >= total, progress: Math.min(done, total) + '/' + total, done: Math.min(done, total), total });
     return [
-      { id: 'first', name: 'Первое дежурство', cond: 'Отдежурить хотя бы раз', earned: c.present >= 1, progress: Math.min(c.present, 1) + '/1', done: Math.min(c.present, 1), total: 1 },
-      { id: 'perfect10', name: '10 из 10', cond: '10 дежурств без пропусков и побегов', earned: c.present >= 10 && (c.absent + c.escaped) === 0, progress: Math.min(c.present, 10) + '/10', done: Math.min(c.present, 10), total: 10 },
-      { id: 'sub', name: 'Выручил группу', cond: 'Выйти на дежурство вместо другого', earned: c.subbed, progress: (c.subbed ? '1' : '0') + '/1', done: c.subbed ? 1 : 0, total: 1 }
+      b('first', 'Первый шаг', 'Отдежурить хотя бы раз', c.total, 1),
+      b('reliable', 'Надёжный участник', 'Присутствовать на 5 дежурствах', c.present, 5),
+      b('steady', 'Постоянство', 'Присутствовать на 10 дежурствах', c.present, 10),
+      b('experienced', 'Опытный дежурный', 'Отдежурить 25 раз', c.total, 25),
+      b('pro', 'Профессионал', 'Отдежурить 50 раз', c.total, 50),
+      b('streak3', 'Без перерывов', '3 дежурства подряд без пропусков', st, 3),
+      b('iron', 'Железная дисциплина', '5 дежурств подряд без пропусков', sa, 5),
+      b('flawless', 'Безупречная статистика', '10 дежурств подряд без пропусков и побегов', st, 10),
+      b('teammate', 'Командный игрок', 'Выйти на дежурство вместо другого', c.subbed ? 1 : 0, 1)
     ];
   },
+  /* ordo-161: шапка «Достижения — N из 9 получено · Серия: S» + общий
+     прогресс-бар; секция — обычный блок, всегда раскрыта (у форка
+     <details>, который схлопывается при возврате на экран, — не переносим).
+     Отдельная карточка серии убрана: серия теперь в шапке. */
   sectionHTML(log, personId){
     const st = Achv.streak(log, personId);
     const badges = Achv.badges(log, personId);
-    return `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Достижения</div>
-      <div class="rows"><div class="row"><div class="grow">Серия без пропусков</div><b>${st}</b></div></div>
+    const earned = badges.filter(x => x.earned).length;
+    const pct = Math.round(earned / badges.length * 100);
+    return `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Достижения — ${earned} из ${badges.length} получено · Серия: ${st}</div>
+      <div class="achv-top"><span class="achv-cond" style="margin:0">Общий прогресс</span><span class="achv-prog">${pct}%</span></div>
+      <div class="achv-bar" style="height:6px;margin-top:8px"><i style="width:${pct}%"></i></div>
       <div class="achv-list">${badges.map(b => {
-        const pct = b.total ? Math.round(b.done / b.total * 100) : 0;
-        const bar = b.total > 1 ? `<div class="achv-bar"><i style="width:${pct}%"></i></div>` : '';
+        const bpct = b.total ? Math.round(b.done / b.total * 100) : 0;
         return `<div class="achv${b.earned ? ' earned' : ''}">
           <div class="achv-top"><b>${b.earned ? '✓ ' : ''}${esc(b.name)}</b><span class="achv-prog">${esc(b.progress)}</span></div>
-          <div class="achv-cond">${esc(b.cond)}</div>${bar}</div>`;
+          <div class="achv-cond">${esc(b.cond)}</div><div class="achv-bar"><i style="width:${bpct}%"></i></div></div>`;
       }).join('')}</div></div>`;
   }
 };
@@ -3073,14 +3148,11 @@ function paintPresence(){ /* admin-only online dots, updated live without full r
    показывалась как «Белински, Маргарита» — фамилия одного + имя другого,
    читалось как один человек. Теперь: если у кого-то из пары имя-тёзка
    в группе — фамилии обоих, иначе имена обоих. */
-function shortNames(pair){
-  const first = p => ((p.name || '').split(/\s+/)[1] || '').toLowerCase();
-  const dup = p => first(p) !== '' && S.people.some(q => q.id !== p.id && first(q) === first(p));
-  const surnames = pair.some(dup);
-  return pair.map(p => {
-    const parts = (p.name || '').split(/\s+/);
-    return surnames ? parts[0] : (parts[1] || parts[0]);
-  });
+/* ordo-161: везде «Фамилия Имя» (было shortNames из ordo-148 — только имена,
+   а при тёзках фамилии: в группе четыре Артёма, имена без фамилий — лотерея).
+   p.name уже хранится как «Фамилия Имя», тёзки различаются сами. */
+function fullNames(pair){
+  return (pair || []).map(p => p.name || '');
 }
 /* ordo-149: подсказка «Добавить на экран Домой» — один раз, только в мобильном
    браузере и только пока сайт не добавлен (standalone). PWA-мета уже в шапке. */
@@ -3156,7 +3228,7 @@ function vHome(){
   const pairs = nextPairs(3);
   const nextCard = pairs.length
     ? `<button class="nextcard" id="nextCard"><span class="eyebrow">Следующие дежурные</span>
-      ${pairs.map((pr, i) => `<span class="next-row"><span class="next-names">${shortNames(pr).map(n => esc(n)).join(', ')}</span><span class="next-date">${esc(Fair.dateText(Fair.forecast(2 * i)))}</span></span>`).join('')}
+      ${pairs.map((pr, i) => `<span class="next-row"><span class="next-names">${fullNames(pr).map(n => esc(n)).join(', ')}</span><span class="next-date">${esc(Fair.dateText(Fair.forecast(2 * i)))}</span></span>`).join('')}
       <span class="tiny">Даты примерные — очередь может сдвинуться.</span></button>`
     : '';
   /* ordo-147: позиция — с общим числом («№9 из 9»); должники — отдельным блоком
@@ -3188,7 +3260,7 @@ function vHome(){
     if(!ps.length) return '';
     const at = new Date(lastEntry.at);
     const dm = isNaN(at) ? '' : at.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
-    return `<p class="tiny" style="margin-top:14px">Последнее дежурство: ${shortNames(ps).map(n => esc(n)).join(', ')}${dm ? ` — ${esc(dm)}` : ''}</p>`;
+    return `<p class="tiny" style="margin-top:14px">Последнее дежурство: ${fullNames(ps).map(n => esc(n)).join(', ')}${dm ? ` — ${esc(dm)}` : ''}</p>`;
   })() : '';
   /* ordo-129-fair: индекс справедливости видят все.
      ordo-147: карточка — крупное N/100 с цветом по порогам, пояснение, что значит
@@ -3227,17 +3299,66 @@ function vHome(){
   const mc = $('#meCard'); if(mc) mc.onclick = () => { S.view = 'queue'; render(); };
 }
 
-/* ordo-149: почему человек на этой позиции — последняя запись журнала, где он упомянут
-   (перестановка старостой или дежурство, после которого он ушёл в конец очереди) */
-function whyHere(p){
+/* ordo-161: почему человек на этой позиции — настоящие события из уже
+   загруженных клиентом данных (журнал, состояние очереди, people), а не
+   одна строка тоста: позиция, последнее дежурство, замены, долг, пропуски,
+   перестановка. Новых RPC нет; audit_log здесь не используется — в шторке
+   только то, что видит сам зритель (журнал группы), ничего не выдумано. */
+function whyHereLines(p){
   const log = S.state.log || [];
+  const q = currentQueue();
+  const idx = q.findIndex(x => x.id === p.id);
+  const lines = [];
+  if(idx >= 0) lines.push({ k:'В очереди', v:`№${idx + 1} из ${q.length}` });
+  let lastDuty = null;
   for(let k = log.length - 1; k >= 0; k--){
     const en = log[k];
-    if(!en) continue;
-    if((en.people || []).some(it => it && it.id === p.id)) return en.action || '';
-    if(en.action && en.action.includes(p.name)) return en.action;
+    if(!en || en.writeoff || !Array.isArray(en.people)) continue;
+    const it = en.people.find(x => x && !x.sub && x.id === p.id);
+    if(it){ lastDuty = { en, it }; break; }
   }
-  return '';
+  if(lastDuty){
+    const st = lastDuty.it.status === STATUS.PRESENT ? 'был' : lastDuty.it.status === STATUS.ABSENT ? 'не было' : 'сбежал';
+    lines.push({ k:'Последнее дежурство', v:`${dateShort(lastDuty.en.at)} — ${st}` });
+  }
+  const subFor = [], subBy = [];
+  log.forEach(en => {
+    if(!en || en.writeoff || !Array.isArray(en.people)) return;
+    en.people.forEach((it, i) => {
+      if(!it || it.id !== p.id) return;
+      if(!it.sub && en.people[i + 1]?.sub){
+        const nm = S.people.find(x => x.id === en.people[i + 1].id)?.name || 'другого';
+        subFor.push(`${nm} — ${dateShort(en.at)}`);
+      }
+      if(it.sub){
+        const rep = en.people[i - 1];
+        const nm = rep ? (S.people.find(x => x.id === rep.id)?.name || 'другой') : 'другой';
+        subBy.push(`${nm} — ${dateShort(en.at)}`);
+      }
+    });
+  });
+  if(subFor.length) lines.push({ k:'Заменял', v: subFor.slice(-2).join('; ') + (subFor.length > 2 ? ` и ещё ${subFor.length - 2}` : '') });
+  if(subBy.length) lines.push({ k:'За него дежурил', v: subBy.slice(-2).join('; ') + (subBy.length > 2 ? ` и ещё ${subBy.length - 2}` : '') });
+  if(debtorIds().includes(p.id)){
+    let debtAt = '';
+    for(let k = log.length - 1; k >= 0; k--){
+      const en = log[k];
+      if(!en || en.writeoff) continue;
+      const it = (en.people || []).find(x => x && !x.sub && x.id === p.id && x.status !== STATUS.PRESENT);
+      if(it){ debtAt = dateShort(en.at); break; }
+    }
+    lines.push({ k:'Долг', v: debtAt ? `пропущенное дежурство от ${debtAt} — дежурит вне очереди` : 'пропущенное дежурство — дежурит вне очереди' });
+  }
+  const c = Achv.counts(log, p.id);
+  if(c.absent + c.escaped > 0) lines.push({ k:'Пропуски', v:`не было: ${c.absent}, сбежал: ${c.escaped}` });
+  for(let k = log.length - 1; k >= 0; k--){
+    const en = log[k];
+    if(en && en.kind === 'reorder' && en.action && en.action.includes(p.name)){
+      lines.push({ k:'Перестановка', v:`${en.action} — ${dateShort(en.at)}` });
+      break;
+    }
+  }
+  return lines;
 }
 
 /* ---------------- queue ---------------- */
@@ -3269,11 +3390,17 @@ function vQueue(){
   shell(`${head}<div class="sec qlist" id="qList" style="margin-top:16px">${rows || '<p class="body2">Пока пусто.</p>'}</div>`, 'queue');
   const t = $('#ordTgl'); if(t) t.onclick = () => { S.orderMode = !S.orderMode; render(); };
   const qb = $('#qrBtn'); if(qb) qb.onclick = () => { S.view = 'qr'; render(); };
-  /* ordo-149: тап по строке — почему человек здесь (последняя запись журнала о нём) */
+  /* ordo-161: тап по строке — шторка «почему он здесь» (позиция, последнее
+     дежурство, замены, долг, пропуски, перестановка); пусто — честный тост */
   document.querySelectorAll('#qList .qrow').forEach(r => r.onclick = () => {
     const p = S.people.find(x => x.id === r.dataset.pid);
     if(!p) return;
-    toast(whyHere(p) || 'В очереди с самого начала — перестановок не было.');
+    const lines = whyHereLines(p);
+    if(!lines.length){ toast('В очереди с самого начала — перестановок не было.'); return; }
+    const w = sheet(`<h3>${esc(p.name)}</h3>
+      <div class="rows" style="margin-top:14px">${lines.map(l => `<div class="row"><div class="grow"><b>${esc(l.k)}</b><div class="sub">${esc(l.v)}</div></div></div>`).join('')}</div>
+      <div class="actions"><button class="btn btn-p" id="whOk">Понятно</button></div>`);
+    w.querySelector('#whOk').onclick = closeSheet;
   });
   document.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
     const [id, d] = b.dataset.mv.split('|');
@@ -3892,33 +4019,70 @@ function vProfile(){
     `<button class="row" id="pfAbout"><div class="grow">О проекте</div><span class="chev">›</span></button>`,
     `<button class="row" id="pfOut"><div class="grow" style="color:var(--red)">Выйти</div></button>`
   ].join('');
+  /* ordo-161: поиск и фильтр по истории. База — те же последние 10 записей,
+     что и раньше (recent); счётчик «N из M записей» обновляется при каждом
+     вводе — у форка он не обновлялся вовсе. */
+  S._histQ = ''; S._histF = 'all';
+  const histRow = (en) => {
+    const gi = log.indexOf(en);
+    const del = isStaff() ? `<button class="linkbtn danger" style="font-size:13px;padding:6px" data-hdel="${gi}" aria-label="Удалить запись">×</button>` : '';
+    if(en.kind === 'reorder')
+      return `<div class="hrow"><div class="grow"><b>${esc(en.action || '')}</b></div>
+        <span class="tiny">${esc(fmt(en.at))}</span>
+        ${del}</div>`;
+    return `<div class="hrow"><div class="grow"><b>${esc(en.counted ? 'Засчитано' : 'Не засчитано')}</b>
+        <div class="sub clamp3" style="font-size:14px;color:var(--sec);margin-top:2px">${esc(en.action || '')}</div></div>
+        <span class="tiny">${esc(fmt(en.at))}</span>
+        ${del}</div>`;
+  };
+  const bindHistDel = () => {
+    document.querySelectorAll('[data-hdel]').forEach(b => b.onclick = () => {
+      const i = +b.dataset.hdel, x = (S.state.log || [])[i];
+      if(!x) return;
+      confirmBox('Удалить запись?', '«' + String(x.action || '').slice(0, 90) + '» исчезнет из истории, долги пересчитаются.', 'Удалить', () =>
+        run(async () => {
+          S.state.log.splice(i, 1);
+          await Store.saveState();
+          await Store.audit('history_deleted', { action:x.action });
+          render(); toast('Запись удалена');
+        }), true);
+    });
+  };
+  const histRender = () => {
+    const q = (S._histQ || '').trim().toLowerCase();
+    const f = S._histF || 'all';
+    const list = recent.filter(en => {
+      if(f === 'counted' && (en.kind === 'reorder' || !en.counted)) return false;
+      if(f === 'uncounted' && (en.kind === 'reorder' || en.counted)) return false;
+      if(f === 'reorder' && en.kind !== 'reorder') return false;
+      if(q && !((en.action || '') + ' ' + fmt(en.at)).toLowerCase().includes(q)) return false;
+      return true;
+    });
+    const cnt = document.getElementById('histCount');
+    if(cnt) cnt.textContent = (q || f !== 'all') ? `${list.length} из ${recent.length} записей` : `${recent.length} ${recWord(recent.length)}`;
+    const box = document.getElementById('histList');
+    if(box) box.innerHTML = list.length ? list.map(histRow).join('') : (q || f !== 'all' ? '<p class="body2">Ничего не найдено</p><p class="tiny">Измените фильтр или поисковый запрос.</p>' : '<p class="body2">Пока пусто.</p>');
+    bindHistDel();
+  };
   shell(`
 
     ${me ? `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Мои дежурства</div>
-      <div class="rows"><div class="row"><div class="grow">Был</div><b>${pr}</b></div>
-      <div class="row"><div class="grow">Не было</div><b>${ab}</b></div>
-      <div class="row"><div class="grow">Сбежал</div><b>${es}</b></div>
-      <div class="row"><div class="grow">Всего дежурств</div><b>${pr + ab + es}</b></div>
-      <div class="row"><div class="grow">Заменял других</div><b>${subN}</b></div>
+      <div class="stat-grid">
+        <div class="stat-card"><span class="stat-ic good">✓</span><div class="stat-tx"><div class="stat-num">${pr}</div><div class="stat-lb">Присутствовал</div></div></div>
+        <div class="stat-card"><span class="stat-ic bad">✕</span><div class="stat-tx"><div class="stat-num">${ab}</div><div class="stat-lb">Отсутствовал</div></div></div>
+        <div class="stat-card"><span class="stat-ic warn">↩</span><div class="stat-tx"><div class="stat-num">${es}</div><div class="stat-lb">Завершил досрочно</div></div></div>
+        <div class="stat-card"><span class="stat-ic total">∑</span><div class="stat-tx"><div class="stat-num">${pr + ab + es}</div><div class="stat-lb">Всего дежурств</div></div></div>
+      </div>
+      <div class="rows" style="margin-top:10px"><div class="row"><div class="grow">Заменял других</div><b>${subN}</b></div>
       ${fcLine}</div>
       </div>` : ''}
 
     ${me ? Achv.sectionHTML(log, me.id) : ''}
 
-    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">${me ? 'Мои записи' : 'Журнал группы'}</div>
-      ${recent.length ? recent.map((en) => {
-        const gi = log.indexOf(en);
-        const del = isStaff() ? `<button class="linkbtn danger" style="font-size:13px;padding:6px" data-hdel="${gi}" aria-label="Удалить запись">×</button>` : '';
-        if(en.kind === 'reorder')
-          return `<div class="hrow"><div class="grow"><b>${esc(en.action || '')}</b></div>
-        <span class="tiny">${esc(fmt(en.at))}</span>
-        ${del}</div>`;
-        return `<div class="hrow"><div class="grow"><b>${esc(en.counted ? 'Засчитано' : 'Не засчитано')}</b>
-        <div class="sub clamp3" style="font-size:14px;color:var(--sec);margin-top:2px">${esc(en.action || '')}</div></div>
-        <span class="tiny">${esc(fmt(en.at))}</span>
-        ${del}</div>`;
-      }).join('')
-        : '<p class="body2">Пока пусто.</p>'}</div>    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Действия</div><div class="rows">${rows}</div></div>
+    <div class="sec"><div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px"><div class="eyebrow" style="margin:0">${me ? 'Мои записи' : 'Журнал группы'}</div><span class="tiny" id="histCount"></span></div>
+      <div class="hist-tools"><input id="histQ" class="inp" type="search" placeholder="Поиск по истории..." autocomplete="off"><select id="histF" class="inp" aria-label="Фильтр записей"><option value="all">Все записи</option><option value="counted">Засчитанные</option><option value="uncounted">Не засчитанные</option><option value="reorder">Изменения очереди</option></select></div>
+      <div id="histList"></div></div>
+    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Действия</div><div class="rows">${rows}</div></div>
 
 
     <p class="tiny" style="margin-top:30px;text-align:center">© 2026 Damir Tadzhiev · Ordo</p>`, 'profile');
@@ -3947,17 +4111,9 @@ function vProfile(){
     document.getElementById('abOk').onclick = closeSheet;
   };
   $('#pfOut').onclick = () => confirmBox('Выйти?', 'Придётся войти заново.', 'Выйти', () => Auth.logout(), true);
-  document.querySelectorAll('[data-hdel]').forEach(b => b.onclick = () => {
-    const i = +b.dataset.hdel, x = (S.state.log || [])[i];
-    if(!x) return;
-    confirmBox('Удалить запись?', '«' + String(x.action || '').slice(0, 90) + '» исчезнет из истории, долги пересчитаются.', 'Удалить', () =>
-      run(async () => {
-        S.state.log.splice(i, 1);
-        await Store.saveState();
-        await Store.audit('history_deleted', { action:x.action });
-        render(); toast('Запись удалена');
-      }), true);
-  });
+  histRender();
+  const hq = $('#histQ'); if(hq) hq.oninput = () => { S._histQ = hq.value; histRender(); };
+  const hf = $('#histF'); if(hf) hf.onchange = () => { S._histF = hf.value; histRender(); };
 }
 
 /* ---------------- admin (discreet curtain) ---------------- */
