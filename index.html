@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-170';})();</script>
+window.__ORDO_BUILD='ordo-171';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -3114,7 +3114,7 @@ function aoaToRows(aoa){
 
 /* ---------------- shell ---------------- */
 function shell(content, active){
-  S._activeTab = active || null; /* ordo-132: какая вкладка подсвечена; подстраницы (vol/volm/admin) — не вкладки */
+  S._activeTab = active || null; /* ordo-132: какая вкладка подсвечена; подстраницы (vol/admin) — не вкладки */
   /* ordo-166: фоновая перерисовка того же экрана (realtime, обновление данных)
      не должна заново проигрывать анимацию входа — иначе главная «моргает»
      после загрузки. Анимация — только когда экран показан впервые или после
@@ -3127,7 +3127,7 @@ function shell(content, active){
   tabs.push(['requests','Обращения',ICON.chat]);
   tabs.push(['profile','Профиль',ICON.user]);
   const short = (S.profile?.display_name || S.user?.email || '').split('@')[0];
-  const _titles = { home:'Главная', queue:'Очередь', people:'Группа', requests:'Обращения', profile:'Профиль', admin:'Администрирование', vol:'Волонтёрство', volm:'Волонтёрство · куратор', qr:'QR на дверь' };
+  const _titles = { home:'Главная', queue:'Очередь', people:'Группа', requests:'Обращения', profile:'Профиль', admin:'Администрирование', vol:'Волонтёрство', qr:'QR на дверь' };
   document.title = (_titles[S.view] || 'Ordo') + ' · Ordo';
   root.innerHTML = `
   <div class="topbar"><div class="topbar-in">
@@ -3867,45 +3867,96 @@ const Vol = {
 };
 const VOL_ST = { pending:['Ожидает','amber'], approved:['Подтверждено','green'], rejected:['Отклонено','red'], attended:['Был','green'], absent:['Не был','red'] };
 async function vVolunteer(){
+  /* ordo-171: один экран «Волонтёрство» для всех: сверху события с записью,
+     ниже для стаффа — секция управления (бывший отдельный экран куратора:
+     «＋ Новое событие», счётчики и кнопки Участники / Закрыть-Открыть / Удалить).
+     Нестаффу секция управления не показывается вообще — её нет в DOM. */
+  const staff = isStaff();
   let list = document.getElementById('volList');
   if(!list){
     shell(`<h1 class="stitle" style="margin-top:4px">Волонтёрство</h1>
       <p class="body2" style="margin-top:6px">Выберите событие и запишитесь. Куратор подтвердит участие.</p>
-      <div id="volList" style="margin-top:16px"></div>`, 'vol');
+      <div id="volList" style="margin-top:16px"></div>` +
+      (staff ? `<div class="eyebrow" style="margin:28px 0 4px">Управление</div>
+      <p class="body2" style="margin-top:6px">Создавайте события, подтверждайте заявки и отмечайте, кто пришёл.</p>
+      <div style="margin-top:16px"><button class="btn btn-p" id="vmNew" style="width:100%">＋ Новое событие</button></div>
+      <div id="vmList" style="margin-top:16px"></div>` : ''), 'vol');
+    const nw = document.getElementById('vmNew'); if(nw) nw.onclick = () => VolM.compose();
     list = document.getElementById('volList');
     if(!list) return;
   }
   const paint = h => { list.innerHTML = `<div class="vin">${h}</div>`; };
   try{
     const { events, mine } = await Vol.load();
-    if(!events.length){ paint('<p class="body2" style="color:var(--ter)">Пока нет предстоящих событий.</p>'); return; }
-    paint(`<div class="rows">` + events.map(e => {
-      const st = mine[e.id];
-      const info = VOL_ST[st];
-      const meta = [fmt(e.starts_at), e.hours > 0 ? e.hours + ' ч' : '', e.slots ? 'мест: ' + e.slots : ''].filter(Boolean).join(' · ');
-      const tag = st ? `<span class="tag ${info ? info[1] : 'blue'}">${esc(info ? info[0] : st)}</span>` : '';
-      const btn = !st ? `<button class="btn btn-p" style="min-height:44px;flex:1" data-vs="${esc(e.id)}">Записаться</button>`
-        : (st === 'pending' || st === 'approved') ? `<button class="btn btn-q" style="min-height:44px;flex:1" data-vc="${esc(e.id)}">Отменить запись</button>` : '';
-      return `<div class="row" style="align-items:flex-start"><div class="grow">
-        <b>${esc(e.title)}</b>
-        <div class="sub">${esc(meta)}</div>
-        ${e.description ? `<div class="sub" style="margin-top:4px">${esc(e.description)}</div>` : ''}
-        ${btn ? `<div style="display:flex;gap:8px;margin-top:10px">${btn}</div>` : ''}
-      </div>${tag}</div>`;
-    }).join('') + `</div>`);
-    list.querySelectorAll('[data-vs]').forEach(b => b.onclick = async () => {
-      b.disabled = true;
-      try{ await Vol.signup(b.dataset.vs); toast('Вы записаны, ждите подтверждения'); }
-      catch(e){ toast(Vol.err(e)); }
-      vVolunteer();
-    });
-    list.querySelectorAll('[data-vc]').forEach(b => b.onclick = () =>
-      confirmBox('Отменить запись?', 'Куратор увидит, что вы отказались.', 'Отменить запись', async () => {
-        try{ await Vol.cancel(b.dataset.vc); toast('Запись отменена'); }
+    if(!events.length){ paint('<p class="body2" style="color:var(--ter)">Пока нет предстоящих событий.</p>'); }
+    else{
+      paint(`<div class="rows">` + events.map(e => {
+        const st = mine[e.id];
+        const info = VOL_ST[st];
+        const meta = [fmt(e.starts_at), e.hours > 0 ? e.hours + ' ч' : '', e.slots ? 'мест: ' + e.slots : ''].filter(Boolean).join(' · ');
+        const tag = st ? `<span class="tag ${info ? info[1] : 'blue'}">${esc(info ? info[0] : st)}</span>` : '';
+        const btn = !st ? `<button class="btn btn-p" style="min-height:44px;flex:1" data-vs="${esc(e.id)}">Записаться</button>`
+          : (st === 'pending' || st === 'approved') ? `<button class="btn btn-q" style="min-height:44px;flex:1" data-vc="${esc(e.id)}">Отменить запись</button>` : '';
+        return `<div class="row" style="align-items:flex-start"><div class="grow">
+          <b>${esc(e.title)}</b>
+          <div class="sub">${esc(meta)}</div>
+          ${e.description ? `<div class="sub" style="margin-top:4px">${esc(e.description)}</div>` : ''}
+          ${btn ? `<div style="display:flex;gap:8px;margin-top:10px">${btn}</div>` : ''}
+        </div>${tag}</div>`;
+      }).join('') + `</div>`);
+      list.querySelectorAll('[data-vs]').forEach(b => b.onclick = async () => {
+        b.disabled = true;
+        try{ await Vol.signup(b.dataset.vs); toast('Вы записаны, ждите подтверждения'); }
         catch(e){ toast(Vol.err(e)); }
         vVolunteer();
-      }, true));
+      });
+      list.querySelectorAll('[data-vc]').forEach(b => b.onclick = () =>
+        confirmBox('Отменить запись?', 'Куратор увидит, что вы отказались.', 'Отменить запись', async () => {
+          try{ await Vol.cancel(b.dataset.vc); toast('Запись отменена'); }
+          catch(e){ toast(Vol.err(e)); }
+          vVolunteer();
+        }, true));
+    }
   }catch(e){ paint(`<div class="notice">${esc(Vol.err(e))}</div>`); }
+  const mlist = document.getElementById('vmList');
+  if(staff && mlist){
+    const mpaint = h => { mlist.innerHTML = `<div class="vin">${h}</div>`; };
+    try{
+      const { events, counts } = await VolM.load();
+      if(!events.length){ mpaint('<p class="body2" style="color:var(--ter)">Событий пока нет. Создайте первое.</p>'); }
+      else{
+        mpaint(`<div class="rows">` + events.map(e => {
+          const c = counts[e.id] || {};
+          const who = e.group_id ? ((S.groups || []).find(g => g.id === e.group_id) || {}).name || 'группа' : 'весь колледж';
+          const meta = [fmt(e.starts_at), who, e.hours > 0 ? e.hours + ' ч' : '', e.slots ? 'мест: ' + e.slots : ''].filter(Boolean).join(' · ');
+          const stat = `ожидают ${c.pending || 0} · подтверждено ${c.approved || 0} · были ${c.attended || 0}`;
+          return `<div class="row" style="align-items:flex-start"><div class="grow">
+            <b>${esc(e.title)}</b>
+            <div class="sub">${esc(meta)}</div>
+            <div class="sub" style="margin-top:2px">${esc(stat)}</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+              <button class="btn btn-q" style="min-height:44px;width:100%" data-vmo="${esc(e.id)}">Участники</button>
+              <button class="btn btn-q" style="min-height:44px;width:100%" data-vmc="${esc(e.id)}|${e.closed ? 0 : 1}">${e.closed ? 'Открыть запись' : 'Закрыть запись'}</button>
+              <button class="btn btn-danger-q" style="min-height:44px;width:100%" data-vmx="${esc(e.id)}">Удалить</button>
+            </div>
+          </div>${e.closed ? '<span class="tag amber">Закрыто</span>' : ''}</div>`;
+        }).join('') + `</div>`);
+        mlist.querySelectorAll('[data-vmo]').forEach(b => b.onclick = () => VolM.people(b.dataset.vmo));
+        mlist.querySelectorAll('[data-vmc]').forEach(b => b.onclick = async () => {
+          const [id, cl] = b.dataset.vmc.split('|');
+          try{ await VolM.patch(id, { closed: cl === '1' }); toast(cl === '1' ? 'Запись закрыта' : 'Запись открыта'); }
+          catch(e){ toast(Vol.err(e)); }
+          vVolunteer();
+        });
+        mlist.querySelectorAll('[data-vmx]').forEach(b => b.onclick = () =>
+          confirmBox('Удалить событие?', 'Все записи участников тоже удалятся.', 'Удалить', async () => {
+            try{ await VolM.remove(b.dataset.vmx); toast('Событие удалено'); }
+            catch(e){ toast(Vol.err(e)); }
+            vVolunteer();
+          }, true));
+      }
+    }catch(e){ mpaint(`<div class="notice">${esc(Vol.err(e))}</div>`); }
+  }
 }
 
 /* ---------------- profile ---------------- */
@@ -3981,7 +4032,7 @@ const VolM = {
           title, description: desc || null, starts_at: when.toISOString(), hours, slots
         });
         if(r.error) throw r.error;
-        closeSheet(); toast('Событие создано'); vVolManage();
+        closeSheet(); toast('Событие создано'); vVolunteer();
       }catch(e){ btn.disabled = false; toast(Vol.err(e)); }
     };
   },
@@ -4014,7 +4065,7 @@ const VolM = {
             const d = await db.rpc('volunteer_decide', { p_event:id, p_user:uid, p_status:st });
             if(d.error) throw d.error;
           }catch(e){ toast(Vol.err(e)); }
-          await fill(); vVolManage();
+          await fill(); vVolunteer();
         });
       }catch(e){ body.innerHTML = `<div class="notice">${esc(Vol.err(e))}</div>`; }
     };
@@ -4031,52 +4082,6 @@ const VolM = {
     if(!(r.data || []).length) throw new Error('forbidden');
   }
 };
-async function vVolManage(){
-  let list = document.getElementById('vmList');
-  if(!list){
-    shell(`<h1 class="stitle" style="margin-top:4px">Волонтёрство · куратор</h1>
-      <p class="body2" style="margin-top:6px">Создавайте события, подтверждайте заявки и отмечайте, кто пришёл.</p>
-      <div style="margin-top:16px"><button class="btn btn-p" id="vmNew" style="width:100%">＋ Новое событие</button></div>
-      <div id="vmList" style="margin-top:16px"></div>`, 'volm');
-    document.getElementById('vmNew').onclick = () => VolM.compose();
-    list = document.getElementById('vmList');
-    if(!list) return;
-  }
-  const paint = h => { list.innerHTML = `<div class="vin">${h}</div>`; };
-  try{
-    const { events, counts } = await VolM.load();
-    if(!events.length){ paint('<p class="body2" style="color:var(--ter)">Событий пока нет. Создайте первое.</p>'); return; }
-    paint(`<div class="rows">` + events.map(e => {
-      const c = counts[e.id] || {};
-      const who = e.group_id ? ((S.groups || []).find(g => g.id === e.group_id) || {}).name || 'группа' : 'весь колледж';
-      const meta = [fmt(e.starts_at), who, e.hours > 0 ? e.hours + ' ч' : '', e.slots ? 'мест: ' + e.slots : ''].filter(Boolean).join(' · ');
-      const stat = `ожидают ${c.pending || 0} · подтверждено ${c.approved || 0} · были ${c.attended || 0}`;
-      return `<div class="row" style="align-items:flex-start"><div class="grow">
-        <b>${esc(e.title)}</b>
-        <div class="sub">${esc(meta)}</div>
-        <div class="sub" style="margin-top:2px">${esc(stat)}</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
-          <button class="btn btn-q" style="min-height:44px;width:100%" data-vmo="${esc(e.id)}">Участники</button>
-          <button class="btn btn-q" style="min-height:44px;width:100%" data-vmc="${esc(e.id)}|${e.closed ? 0 : 1}">${e.closed ? 'Открыть запись' : 'Закрыть запись'}</button>
-          <button class="btn btn-danger-q" style="min-height:44px;width:100%" data-vmx="${esc(e.id)}">Удалить</button>
-        </div>
-      </div>${e.closed ? '<span class="tag amber">Закрыто</span>' : ''}</div>`;
-    }).join('') + `</div>`);
-    list.querySelectorAll('[data-vmo]').forEach(b => b.onclick = () => VolM.people(b.dataset.vmo));
-    list.querySelectorAll('[data-vmc]').forEach(b => b.onclick = async () => {
-      const [id, cl] = b.dataset.vmc.split('|');
-      try{ await VolM.patch(id, { closed: cl === '1' }); toast(cl === '1' ? 'Запись закрыта' : 'Запись открыта'); }
-      catch(e){ toast(Vol.err(e)); }
-      vVolManage();
-    });
-    list.querySelectorAll('[data-vmx]').forEach(b => b.onclick = () =>
-      confirmBox('Удалить событие?', 'Все записи участников тоже удалятся.', 'Удалить', async () => {
-        try{ await VolM.remove(b.dataset.vmx); toast('Событие удалено'); }
-        catch(e){ toast(Vol.err(e)); }
-        vVolManage();
-      }, true));
-  }catch(e){ paint(`<div class="notice">${esc(Vol.err(e))}</div>`); }
-}
 
 const Team = {
   open(){
@@ -4149,7 +4154,6 @@ function vProfile(){
     (me && !S.demo) ? `<button class="row" id="pfWebcal"><div class="grow"><b>Живая подписка (webcal)</b><div class="sub">Календарь обновляется сам при изменении очереди — обычно в течение нескольких часов.</div></div><span class="chev">›</span></button>` : '',
     isStaff() ? `<button class="row" id="pfAdm"><div class="grow"><b>Администрирование</b><div class="sub">Группы, доступ, состояние, события</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfVol"><div class="grow"><b>Волонтёрство</b><div class="sub">События и запись</div></div><span class="chev">›</span></button>`,
-        isStaff() ? `<button class="row" id="pfVolM"><div class="grow"><b>Волонтёрство · куратор</b><div class="sub">События и заявки</div></div><span class="chev">›</span></button>` : '',
     `<button class="row" id="pfAbout"><div class="grow">О проекте</div><span class="chev">›</span></button>`,
     `<button class="row" id="pfOut"><div class="grow" style="color:var(--red)">Выйти</div></button>`
   ].join('');
@@ -4226,7 +4230,6 @@ function vProfile(){
   const wc = $('#pfWebcal'); if(wc) wc.onclick = () => Webcal.show();
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
   const vl = $('#pfVol'); if(vl) vl.onclick = () => { S.view = 'vol'; render(); };
-    const vm = $('#pfVolM'); if(vm) vm.onclick = () => { S.view = 'volm'; render(); };
   $('#pfAbout').onclick = () => openAboutSheet();
   $('#pfOut').onclick = () => confirmBox('Выйти?', 'Придётся войти заново.', 'Выйти', () => Auth.logout(), true);
   histRender();
@@ -4476,7 +4479,6 @@ function render(){
   else if(v === 'people' && isLeader()) vPeople();
   else if(v === 'requests') vRequests();
   else if(v === 'vol') vVolunteer();
-  else if(v === 'volm' && isStaff()) vVolManage();
   else if(v === 'qr') vQr();
   else if(v === 'profile') vProfile();
   else if(v === 'admin' && isStaff()) vAdmin();
