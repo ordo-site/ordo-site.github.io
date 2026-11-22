@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-161';})();</script>
+window.__ORDO_BUILD='ordo-162';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -352,6 +352,7 @@ a.row:active{background:var(--fill)}
 .team2{display:grid;gap:10px}
 .tcard{display:flex;gap:14px;align-items:center;background:var(--bg2);border-radius:18px;padding:14px 16px}
 .tava{width:54px;height:54px;border-radius:50%;object-fit:cover;flex:none;box-sizing:border-box;border:2px solid transparent;background:linear-gradient(var(--fill),var(--fill)) padding-box,linear-gradient(145deg,var(--accent),var(--accent-soft)) border-box}
+.tava.ini{display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:19px;font-weight:700}
 .tname{font-size:17px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
 .trole{margin-top:3px;color:var(--sec);font-size:12.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 .pill{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 15px;border-radius:999px;background:var(--fill);color:var(--text);font-size:14px;font-weight:600;text-decoration:none;transition:transform .16s var(--spring)}
@@ -3972,7 +3973,7 @@ async function vVolManage(){
 const Team = {
   open(){
     const w = sheet(`<h3>Команда</h3>
-    <div class="team2" style="margin-top:14px"><div class="tcard"><img class="tava" alt="Дамир Таджиев" src="img/team-damir.jpg"><div><div class="tname"><span aria-hidden="true">𝔇𝔞𝔪𝔦𝔯</span><span class="sr-only">Дамир Таджиев</span></div><div class="trole">Автор сайта</div></div></div><div class="tcard"><img class="tava" alt="Алексей Дергалёв" src="img/team-alex.jpg"><div><div class="tname">Алексей Дергалёв</div><div class="trole">Глава старост</div></div></div></div>
+    <div class="team2" style="margin-top:14px"><div class="tcard"><img class="tava" alt="Дамир Таджиев" src="img/team-damir.jpg"><div><div class="tname"><span aria-hidden="true">𝔇𝔞𝔪𝔦𝔯</span><span class="sr-only">Дамир Таджиев</span></div><div class="trole">Автор сайта</div></div></div><div class="tcard"><img class="tava" alt="Алексей Дергалёв" src="img/team-alex.jpg"><div><div class="tname">Алексей Дергалёв</div><div class="trole">Глава старост</div></div></div><div class="tcard"><div class="tava ini" aria-hidden="true">РЩ</div><div><div class="tname">Роман Щербаков</div><div class="trole">Разработчик</div></div></div></div>
     <div class="actions"><button class="btn btn-p" id="tmOk">Закрыть</button></div>`);
     w.querySelector('#tmOk').onclick = closeSheet;
   }
