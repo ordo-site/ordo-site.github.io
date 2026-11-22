@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Ordo · © 2026 Damir Tadzhiev (@mediocreep). Все права защищены.
+  Ordo · © 2026 Дамир Таджиев (@mediocreep). Все права защищены.
   Проприетарный код и дизайн: копирование, форк, ребрендинг, повторная публикация и выдача за свой
   без письменного разрешения правообладателя запрещены.
 -->
@@ -8,8 +8,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="author" content="Damir Tadzhiev">
-<meta name="copyright" content="© 2026 Damir Tadzhiev. All rights reserved.">
+<meta name="author" content="Дамир Таджиев">
+<meta name="copyright" content="© 2026 Дамир Таджиев. Все права защищены.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjMDAwIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSI1MCIgcj0iMjEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxMSIvPjxjaXJjbGUgY3g9Ijc2IiBjeT0iNTAiIHI9IjEzIiBmaWxsPSIjMEE4NEZGIi8+PC9zdmc+">
 <meta name="theme-color" content="#000000">
 <meta name="description" content="Ordo — дежурство без лишнего. Очередь дежурств для студенческих групп: назначения, отметки и история.">
@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-167';})();</script>
+window.__ORDO_BUILD='ordo-168';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -114,6 +114,10 @@ a{color:var(--accent);text-decoration:none}
 
 /* ---------- type ---------- */
 .hero{font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.022em}
+/* ordo-168: пустое состояние главной — компактнее: «Сегодня свободно»
+   в одну строку на 390px, чтобы «Ваша очередь» помещалась целиком.
+   На десктопе (min-width:900px) .hero 56px перекрывает это правило. */
+.hero-empty{font-size:36px}
 .stitle{font-size:30px;line-height:1.16;font-weight:700;letter-spacing:-.02em}
 .eyebrow{font-size:13px;font-weight:600;color:var(--sec);letter-spacing:.01em}
 .sechead{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;padding:0;margin:24px 0 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -264,13 +268,23 @@ button.row:active{background:var(--fill)}
 @keyframes vin{from{opacity:0;transform:translateY(10px)}}
 
 /* ---------- sheet ---------- */
-.scrim{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;animation:fade .25s ease}
+/* ordo-168: backdrop шторки — без fade-анимации: непрозрачный сразу,
+   иначе при открытии текст шторки смешивается с экраном под ней.
+   @keyframes fade остаётся — им пользуется .onboard. */
+.scrim{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
 @keyframes fade{from{opacity:0}}
+/* ordo-168: шторка выезжает снизу только через translateY — без opacity:
+   opacity .4 в начале анимации давала «кашу» текста поверх профиля. */
 .sheet{width:100%;max-width:620px;max-height:90vh;overflow-y:auto;background:var(--sheet);border-radius:26px 26px 0 0;padding:12px 22px calc(26px + env(safe-area-inset-bottom));animation:up .42s var(--spring);box-shadow:var(--shadow)}
-@keyframes up{from{transform:translateY(60px);opacity:.4}}
+@keyframes up{from{transform:translateY(60px)}}
 .grab{width:38px;height:5px;border-radius:3px;background:var(--ter);margin:2px auto 16px;opacity:.6}
 .sheet{overscroll-behavior:contain;touch-action:pan-y}
 .sheet h3{font-size:22px;font-weight:700;letter-spacing:-.015em;margin:0 0 6px}
+/* ordo-168: шапка шторки со стрелкой «Назад» (экран «Команда»):
+   стрелка слева от заголовка, заголовок без нижнего отступа. */
+.sheet-head{display:flex;align-items:center;gap:12px}
+.sheet-head h3{margin:0}
+.backbtn{flex:0 0 auto;width:36px;height:36px;border-radius:50%;border:0;background:var(--fill);color:var(--text);font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .sheet .actions{display:flex;gap:10px;margin-top:20px}
 .sheet .actions .btn{flex:1}
 .seg3{display:flex;background:var(--fill);border-radius:16px;padding:4px;gap:4px;margin-top:8px}
@@ -686,11 +700,13 @@ function sheet(html, opts){
   if(lock) w.dataset.locked = '1';
   w.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
   const born = Date.now();
+  w._born = born; /* ordo-168: sheetSwap обновляет метку — защита от
+    ghost-click действует и после смены контента внутри шторки */
   /* iOS ghost click: the tap that opens the sheet can re-fire ~300ms later
      at the same coordinates — often landing on the sheet's own "Отмена".
      Swallow every click inside the sheet for the first 400ms. */
   w.addEventListener('click', e => {
-    if(Date.now() - born < 400){ e.stopPropagation(); e.preventDefault(); return; }
+    if(Date.now() - (w._born || born) < 400){ e.stopPropagation(); e.preventDefault(); return; }
     if(e.target === w && !lock) closeSheet();
   }, true);
   document.body.appendChild(w);
@@ -716,6 +732,26 @@ function sheet(html, opts){
     if(dy > 90 && !lock) closeSheet();
     sy = null; dy = 0;
   });
+  return w;
+}
+/* ordo-168: смена экрана внутри уже открытой шторки (напр. «О проекте» →
+   «Команда»): тот же #sheetWrap и тот же backdrop — ни на кадр не
+   пропадают, контент меняется мгновенно, без opacity-фейда.
+   Обработчики свайпа/Escape и a11y живут на элементе шторки и обёртке,
+   поэтому переживают замену innerHTML. Если шторки нет — обычный sheet(). */
+function sheetSwap(html, opts){
+  const w = document.getElementById('sheetWrap');
+  if(!w) return sheet(html, opts);
+  const sh = w.querySelector('.sheet');
+  if(!sh) return sheet(html, opts);
+  if(opts && opts.lock) w.dataset.locked = '1';
+  w._born = Date.now(); /* ghost-click защита — как при открытии */
+  sh.style.transition = ''; sh.style.transform = '';
+  sh.innerHTML = `<div class="grab"></div>${html}`;
+  const h3 = sh.querySelector('h3');
+  if(h3){ h3.id = 'sheetTitle-' + Date.now(); sh.setAttribute('aria-labelledby', h3.id); }
+  sh.scrollTop = 0;
+  requestAnimationFrame(() => { try{ sh.focus({ preventScroll:true }); }catch(_){ sh.focus(); } });
   return w;
 }
 function closeSheet(suppressRestore){
@@ -1304,7 +1340,7 @@ const Auth = {
           <p class="tiny">Войдите по логину или почте. Впервые здесь? Попросите у старосты ссылку-приглашение.</p>
           <p class="tiny" style="margin-top:12px"><a href="#" id="loginForgot">Забыли пароль?</a><span style="margin:0 10px">·</span><a href="https://t.me/mediocreep" target="_blank" rel="noopener" id="loginSupport">Поддержка</a></p>
           <p class="tiny" style="margin-top:16px"><a href="#" id="loginDocs">Документы</a></p>
-          <p class="tiny" style="margin-top:26px">© 2026 Damir Tadzhiev · Ordo</p>
+          <p class="tiny" style="margin-top:26px">© 2026 Дамир Таджиев · Ordo</p>
         </div>
       </div>
       <button class="iconbtn themebtn" id="loginTheme" aria-label="Переключить тему" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px"></button>
@@ -2049,7 +2085,8 @@ const DOCS = {
 };
 const Docs = {
   open(which){
-    const w = sheet(`<h3>Документы</h3><div data-scroll style="margin-top:10px;max-height:60vh;overflow:auto;overscroll-behavior:contain">
+    /* ordo-168: из «О проекте» открывается свопом внутри той же шторки */
+    const w = sheetSwap(`<h3>Документы</h3><div data-scroll style="margin-top:10px;max-height:60vh;overflow:auto;overscroll-behavior:contain">
       ${Object.entries(DOCS).map(([k,[t,h]]) =>
         `<details class="faq"${k===(which||'privacy')?' open':''}><summary>${t}</summary><div class="policy">${h}</div></details>`).join('')}
       </div><div class="actions"><button class="btn btn-p" id="dcOk">Закрыть</button></div>`);
@@ -3220,6 +3257,9 @@ function vHome(){
   const me = S.people.find(p => p.user_id === S.user?.id);
   const meIdx = myPosition();
   const paused = S.group?.settings?.paused;
+  /* ordo-168: следующие пары нужны уже в hero пустого состояния
+     (подпись «Ближайшее — <дата>»); объявлены здесь, а не у nextCard. */
+  const pairs = nextPairs(3);
 
   let hero, action = '', liveMarks = '';
   if(now){
@@ -3251,8 +3291,21 @@ function vHome(){
     if(isLeader()) action = `<div style="margin-top:26px"><button class="btn btn-p" id="finishBtn">Завершить</button></div>
       <div style="margin-top:12px"><button class="btn btn-danger-q" id="cancelBtn" style="width:100%">Отменить дежурство</button></div>`;
   }else{
-    hero = `<h1 class="hero">Тихо</h1>
-      <p class="body2" style="margin-top:10px">Никто не дежурит.</p>`;
+    /* ordo-168: «Сегодня свободно» вместо «Тихо» (то же крупное слово,
+       компактнее — класс hero-empty, чтобы «Ваша очередь» помещалась
+       целиком на первом экране 390px). Подпись — не дубль заголовка,
+       а дата ближайшего дежурства; по выходным — «Выходной» и дата
+       понедельника. Пауза и пустая очередь — честные подписи без даты. */
+    const nextD = pairs.length ? Fair.forecast(0) : null;
+    const mskWd = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Moscow', weekday: 'short' })
+      .formatToParts(new Date()).find(p => p.type === 'weekday')?.value;
+    const isWknd = mskWd === 'Sat' || mskWd === 'Sun';
+    const sub = paused ? 'Очередь на паузе.'
+      : !nextD ? 'Очередь пуста.'
+      : isWknd ? `Ближайшее — ${nextD.toLocaleDateString('ru-RU', { weekday: 'long' })}, ${nextD.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`
+      : `Ближайшее — ${Fair.dateText(nextD)}`;
+    hero = `<h1 class="hero hero-empty">${isWknd ? 'Выходной' : 'Сегодня свободно'}</h1>
+      <p class="body2" style="margin-top:6px">${esc(sub)}</p>`;
     if(isLeader()){
       if(paused) action = `<div class="notice warn">Назначения приостановлены.</div>`;
       else if(isStaff() || dutyWindowOpen()) action = `<div style="margin-top:26px"><button class="btn btn-p" id="startBtn">Начать дежурство</button></div>`;
@@ -3271,7 +3324,6 @@ function vHome(){
      Даты примерные — оговорка одной строкой под списком. */
   /* ordo-167: строка дня — бейдж даты слева (56px: число + «ноя · пн»),
      справа имена по одному на строку в .duty-person (nowrap). */
-  const pairs = nextPairs(3);
   const nextCard = pairs.length
     ? `<button class="nextcard" id="nextCard"><span class="eyebrow">Следующие дежурные</span>
       ${pairs.map((pr, i) => { const b = Fair.dateBadge(Fair.forecast(2 * i)); return `<span class="next-row"><span class="next-date-badge"><b>${b.day}</b><span>${esc(b.mon)} · ${esc(b.wd)}</span></span><span class="next-names">${fullNames(pr).map(n => `<span class="duty-person">${esc(n)}</span>`).join('')}</span></span>`; }).join('')}
@@ -3857,7 +3909,8 @@ const DONORS = [
 ];
 const Donors = {
   open(){
-    const w = sheet(`<h3>Донатеры</h3>
+    /* ordo-168: из «О проекте» открывается свопом внутри той же шторки */
+    const w = sheetSwap(`<h3>Донатеры</h3>
     <p class="body2" style="margin-top:8px">Люди, поддержавшие Ordo.</p>
     <div class="team2" style="margin-top:14px">${DONORS.map(d => {
       const ini = d.name.split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
@@ -4019,12 +4072,36 @@ async function vVolManage(){
 
 const Team = {
   open(){
-    const w = sheet(`<h3>Команда</h3>
+    /* ordo-168: открывается внутри уже открытой шторки (sheetSwap) —
+       backdrop не дёргается; «Назад» возвращает в «О проекте». */
+    const w = sheetSwap(`<div class="sheet-head"><button class="backbtn" id="tmBack" aria-label="Назад к «О проекте»">‹</button><h3>Команда</h3></div>
     <div class="team2" style="margin-top:14px"><div class="tcard"><img class="tava" alt="Дамир Таджиев" src="img/team-damir.jpg"><div><div class="tname"><span aria-hidden="true">𝔇𝔞𝔪𝔦𝔯</span><span class="sr-only">Дамир Таджиев</span></div><div class="trole">Автор сайта</div></div></div><div class="tcard"><img class="tava" alt="Алексей Дергалёв" src="img/team-alex.jpg"><div><div class="tname">Алексей Дергалёв</div><div class="trole">Глава старост</div></div></div><div class="tcard"><div class="tava ini" aria-hidden="true">РЩ</div><div><div class="tname">Роман Щербаков</div><div class="trole">Разработчик</div></div></div></div>
     <div class="actions"><button class="btn btn-p" id="tmOk">Закрыть</button></div>`);
+    w.querySelector('#tmBack').onclick = () => openAboutSheet();
     w.querySelector('#tmOk').onclick = closeSheet;
   }
 };
+/* ordo-168: экран «О проекте» — отдельная функция: сюда возвращаются
+   кнопкой «Назад» из «Команды» (sheetSwap внутри той же шторки).
+   Первый вызов — из профиля, когда шторки ещё нет. */
+function openAboutSheet(){
+  const w = sheetSwap(`<h3>О проекте</h3>
+    <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.<br>Отдельное спасибо Роману Щербакову — его идеи помогли сделать Ordo лучше.</p>
+    <div class="rows" style="margin-top:16px">
+      <button class="row" id="abDocs"><div class="grow">Документы</div><span class="chev">›</span></button>
+      <button class="row" id="abDonors"><div class="grow">Донатеры<div class="sub">Кто поддержал Ordo и как поддержать</div></div><span class="chev">›</span></button>
+      <button class="row" id="abTeam"><div class="grow">Команда<div class="sub">Кто делает Ordo</div></div><span class="chev">›</span></button>
+      <button class="row" id="abMail"><div class="grow">Связь<div class="sub">Telegram · @mediocreep</div></div><span class="chev">›</span></button>
+    </div>
+    <div class="actions"><button class="btn btn-p" id="abOk">Закрыть</button></div>`);
+  setActiveTab(null); /* ordo-132: «О проекте» — подстраница, подсветка «Профиля» снимается; closeSheet вернёт её при закрытии */
+  document.getElementById('abDocs').onclick = () => Docs.open();
+  document.getElementById('abDonors').onclick = () => Donors.open();
+  document.getElementById('abTeam').onclick = () => Team.open();
+  document.getElementById('abMail').onclick = () => { location.href = SUPPORT_URL; };
+  document.getElementById('abOk').onclick = closeSheet;
+  return w;
+}
 function vProfile(){
   const me = S.people.find(p => p.user_id === S.user?.id);
   const log = S.state.log || [];
@@ -4133,7 +4210,7 @@ function vProfile(){
     <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Действия</div><div class="rows">${rows}</div></div>
 
 
-    <p class="tiny" style="margin-top:30px;text-align:center">© 2026 Damir Tadzhiev · Ordo</p>`, 'profile');
+    <p class="tiny" style="margin-top:30px;text-align:center">© 2026 Дамир Таджиев · Ordo</p>`, 'profile');
   $('#pfPw').onclick = () => Auth.changePassword();
   const pe = $('#pfEmail'); if(pe) pe.onclick = () => { const st = EmailSwitch.status(); if(st === 'synthetic') EmailSwitch.openSheet(false); else if(st === 'confirmed') EmailSwitch.openSheet(true); else EmailSwitch.openConfirmSheet(); };
     const ex = $('#pfExp'); if(ex) ex.onclick = () => Authz.exportExcel();
@@ -4141,23 +4218,7 @@ function vProfile(){
   const ad = $('#pfAdm'); if(ad) ad.onclick = () => { S.view = 'admin'; render(); };
   const vl = $('#pfVol'); if(vl) vl.onclick = () => { S.view = 'vol'; render(); };
     const vm = $('#pfVolM'); if(vm) vm.onclick = () => { S.view = 'volm'; render(); };
-  $('#pfAbout').onclick = () => {
-    sheet(`<h3>О проекте</h3>
-    <p class="body2" style="margin-top:10px"><b>Ordo</b> — дежурство без лишнего.<br>© 2026 Дамир Таджиев. Все права защищены.<br>Отдельное спасибо Роману Щербакову — его идеи помогли сделать Ordo лучше.</p>
-    <div class="rows" style="margin-top:16px">
-      <button class="row" id="abDocs"><div class="grow">Документы</div><span class="chev">›</span></button>
-      <button class="row" id="abDonors"><div class="grow">Донатеры<div class="sub">Кто поддержал Ordo и как поддержать</div></div><span class="chev">›</span></button>
-      <button class="row" id="abTeam"><div class="grow">Команда<div class="sub">Кто делает Ordo</div></div><span class="chev">›</span></button>
-      <button class="row" id="abMail"><div class="grow">Связь<div class="sub">Telegram · @mediocreep</div></div><span class="chev">›</span></button>
-    </div>
-    <div class="actions"><button class="btn btn-p" id="abOk">Закрыть</button></div>`);
-    setActiveTab(null); /* ordo-132: «О проекте» — подстраница, подсветка «Профиля» снимается; closeSheet вернёт её при закрытии */
-    document.getElementById('abDocs').onclick = () => Docs.open();
-    document.getElementById('abDonors').onclick = () => Donors.open();
-    document.getElementById('abTeam').onclick = () => Team.open();
-    document.getElementById('abMail').onclick = () => { location.href = SUPPORT_URL; };
-    document.getElementById('abOk').onclick = closeSheet;
-  };
+  $('#pfAbout').onclick = () => openAboutSheet();
   $('#pfOut').onclick = () => confirmBox('Выйти?', 'Придётся войти заново.', 'Выйти', () => Auth.logout(), true);
   histRender();
   const hq = $('#histQ'); if(hq) hq.oninput = () => { S._histQ = hq.value; histRender(); };
