@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-174';})();</script>
+window.__ORDO_BUILD='ordo-175';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1584,15 +1584,15 @@ const Onboard = {
     let slides;
     const rk = Onboard.roleKey();
     if(rk === 'teacher') slides = [
-      { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего — теперь и для преподавателей. Вы видите только группы, которые вам назначил администратор.',
+      { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего — теперь и для кураторов. Вы видите только группы, которые вам назначил администратор.',
         btn:'Дальше', skip:true, ill:'queue' },
       { eyebrow:'Ваши группы', title:'Очередь, журнал и статистика', body:'Внутри назначенной группы — всё: очередь, отметки, журнал, выгрузка статистики и приглашения.',
         btn:'Дальше', skip:false, ill:'staff' },
       install];
     else if(rk === 'staff') slides = [
-      { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего. Вы управляете колледжем: группы, доступ, приглашения и преподаватели.',
+      { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего. Вы управляете колледжем: группы, доступ, приглашения и кураторы.',
         btn:'Дальше', skip:true, ill:'queue' },
-      { eyebrow:'Управление', title:'Группы, доступ, события', body:'Создавайте группы, выдавайте роли и назначайте преподавателям группы — без назначения преподаватель ничего не видит.',
+      { eyebrow:'Управление', title:'Группы, доступ, события', body:'Создавайте группы, выдавайте роли и назначайте кураторам группы — без назначения куратор ничего не видит.',
         btn:'Дальше', skip:false, ill:'staff' },
       install];
     else if(rk === 'leader') slides = [...student,
@@ -2003,7 +2003,7 @@ const People = {
     }else{
       /* leader: removal only via request to head */
       sheet(`<h3>Убрать участника?</h3>
-        <p class="body2" style="margin-top:10px">Убрать участника может старший староста или преподаватель.<br>Отправьте заявку — её рассмотрят.</p>
+        <p class="body2" style="margin-top:10px">Убрать участника может старший староста или куратор.<br>Отправьте заявку — её рассмотрят.</p>
         <div class="actions"><button class="btn btn-q" id="rqNo">Понятно</button>
         <button class="btn btn-p" id="rqYes">Отправить заявку</button></div>`);
       $('#rqNo').onclick = closeSheet;
@@ -2082,7 +2082,7 @@ const Requests = {
 
 /* ---------------- documents (discreet) ---------------- */
 const DOCS = {
-  privacy: ['Политика конфиденциальности', `<p><b>Связь</b> — datadzhiev@yandex.ru.</p><p><b>Какие данные</b> — фамилия и имя, группа, логин, история дежурств и отметок.</p><p><b>Зачем</b> — только для учёта очереди дежурств. Данные не продаются и не используются для рекламы.</p><p><b>Кто видит</b> — участники своей группы, староста, старший староста, преподаватель и администратор.</p><p><b>Где хранится</b> — сервис Supabase, серверы за пределами России (Ирландия).</p><p><b>Ваши права</b> — если данные неверны или хотите удалить их совсем, напишите на почту выше или старосте.</p>`],
+  privacy: ['Политика конфиденциальности', `<p><b>Связь</b> — datadzhiev@yandex.ru.</p><p><b>Какие данные</b> — фамилия и имя, группа, логин, история дежурств и отметок.</p><p><b>Зачем</b> — только для учёта очереди дежурств. Данные не продаются и не используются для рекламы.</p><p><b>Кто видит</b> — участники своей группы, староста, старший староста, куратор и администратор.</p><p><b>Где хранится</b> — сервис Supabase, серверы за пределами России (Ирландия).</p><p><b>Ваши права</b> — если данные неверны или хотите удалить их совсем, напишите на почту выше или старосте.</p>`],
   terms: ['Условия использования', `<p>Ordo помогает вести очередь дежурств. Это учебный проект: возможны перерывы в работе.</p><p>Аккаунт личный: не передавайте пароль другим. Староста отвечает за достоверность отметок.</p><p>Нельзя пытаться получить доступ к чужим данным, мешать работе сайта, копировать проект без разрешения автора.</p>`],
   license: ['Лицензия', `<p>© 2026 Дамир Таджиев. Все права защищены.</p><p>Код закрытый. Копирование, изменение и распространение без письменного разрешения автора запрещены.</p>`]
 };
@@ -2552,7 +2552,7 @@ const Authz = {
   },
   async setRole(userId, make, btn){
     if(userId === S.user.id) return;
-    if(make && S.profileRoles && S.profileRoles[userId] === 'teacher'){ toast('Преподаватель не может быть старостой.'); return; } /* сервер продублирует */
+    if(make && S.profileRoles && S.profileRoles[userId] === 'teacher'){ toast('Куратор не может быть старостой.'); return; } /* сервер продублирует */
     if(btn){ btn.disabled = true; btn.style.opacity = '.45'; } /* instant feedback: tap registered */
     try{
       await run(async () => {
@@ -2585,12 +2585,12 @@ const Authz = {
         if(make){ render(); }
         else if(btn && btn.isConnected){
           btn.dataset.teacher = userId + '|' + (make ? '0' : '1');
-          btn.textContent = make ? 'Снять преподавателя' : 'Преподаватель';
+          btn.textContent = make ? 'Снять куратора' : 'Куратор';
           btn.closest('.row')?.querySelector('[data-tgroups]')?.remove();
         } else {
           render();
         }
-        toast(make ? 'Роль преподавателя выдана' : 'Роль преподавателя снята');
+        toast(make ? 'Роль куратора выдана' : 'Роль куратора снята');
       });
     }finally{
       if(btn && btn.isConnected){ btn.disabled = false; btn.style.opacity = ''; }
@@ -2691,7 +2691,7 @@ const Invites = {
     const teacherOpt = !!opts.teacher && isAdmin();
     el.innerHTML = `<div class="rows">
       <button class="row" id="invNew"><div class="grow"><b>Создать ссылку</b><div class="sub">Одноразовая, действует 7 дней</div></div><span class="chev">›</span></button>
-      ${teacherOpt ? `<label class="row" style="cursor:pointer"><div class="grow"><b>Ссылка для преподавателя</b><div class="sub">Новый аккаунт сразу станет преподавателем и получит эту группу</div></div><input type="checkbox" id="invTeacher" style="width:20px;height:20px;accent-color:var(--accent)"></label>` : ''}
+      ${teacherOpt ? `<label class="row" style="cursor:pointer"><div class="grow"><b>Ссылка для куратора</b><div class="sub">Новый аккаунт сразу станет куратором и получит эту группу</div></div><input type="checkbox" id="invTeacher" style="width:20px;height:20px;accent-color:var(--accent)"></label>` : ''}
       <div id="invFresh"></div>
       <div id="invList"><div class="row"><p class="body2">Загружаем…</p></div></div>
     </div>`;
@@ -2706,7 +2706,7 @@ const Invites = {
       list.innerHTML = rows.length ? rows.map(inv => {
         const expired = new Date(inv.expires_at).getTime() < Date.now();
         const pname = inv.person_id ? ((S.people.find(pp => pp.id === inv.person_id) || {}).name || 'участник') : null;
-        return `<div class="row"><div class="grow"><b>${pname ? 'Ссылка для ' + esc(pname) : 'Ссылка от ' + esc(fmt(inv.created_at))}</b>${inv.target_role === 'teacher' ? ' <span class="tag">преподаватель</span>' : ''}<div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
+        return `<div class="row"><div class="grow"><b>${pname ? 'Ссылка для ' + esc(pname) : 'Ссылка от ' + esc(fmt(inv.created_at))}</b>${inv.target_role === 'teacher' ? ' <span class="tag">куратор</span>' : ''}<div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
         ${inv.token_plain ? `<button class="linkbtn" data-invcopy="${esc(inv.token_plain)}">Копировать</button>` : ''}
         <button class="linkbtn danger" data-invrev="${esc(inv.id)}">Отозвать</button></div>`;
       }).join('') : '<div class="row"><p class="body2">Действующих ссылок нет.</p></div>';
@@ -2738,7 +2738,7 @@ const Invites = {
       const tok = d.token || (d.link || '').split('invite=')[1] || '';
       fresh.dataset.invId = d.id || '';
       const shortLink = tok ? 'ordo-site.github.io/?invite=' + tok.slice(0,6) + '…' + tok.slice(-4) : d.link;
-      fresh.innerHTML = `<div class="row"><div class="grow"><b>Ссылка готова</b>${d.target_role === 'teacher' ? ' <span class="tag">преподаватель</span>' : ''}<div class="sub" style="word-break:break-all;color:var(--text)">${esc(shortLink)}</div><div class="sub" style="margin-top:6px">Действует до ${esc(fmt(d.expires_at))} · показывается один раз, скопируй сейчас</div></div></div>
+      fresh.innerHTML = `<div class="row"><div class="grow"><b>Ссылка готова</b>${d.target_role === 'teacher' ? ' <span class="tag">куратор</span>' : ''}<div class="sub" style="word-break:break-all;color:var(--text)">${esc(shortLink)}</div><div class="sub" style="margin-top:6px">Действует до ${esc(fmt(d.expires_at))} · показывается один раз, скопируй сейчас</div></div></div>
       <div style="display:flex;gap:8px;margin:10px 16px"><button class="btn btn-q" id="invCopy" style="flex:1">Скопировать ссылку</button></div>`;
       fresh.querySelector('#invCopy').onclick = async () => { try{ await navigator.clipboard.writeText(d.link); toast('Ссылка скопирована'); }catch(_){ toast('Не скопировалось — скопируй вручную'); } };
       await Invites.refresh(el);
@@ -2837,7 +2837,7 @@ const Invite = {
     Invite.info(token).then(info => {
       if(!info.valid) throw new Error(info.error || 'Ссылка недействительна.');
       if(info.target_role === 'teacher'){
-        body.innerHTML = `<p class="body2">Эта ссылка — для регистрации нового преподавателя. Если у тебя уже есть аккаунт, попроси администратора выдать тебе роль.</p><div class="actions"><button class="btn btn-q" id="invOkT">Понятно</button></div>`;
+        body.innerHTML = `<p class="body2">Эта ссылка — для регистрации нового куратора. Если у тебя уже есть аккаунт, попроси администратора выдать тебе роль.</p><div class="actions"><button class="btn btn-q" id="invOkT">Понятно</button></div>`;
         body.querySelector('#invOkT').onclick = dismiss;
         return;
       }
@@ -2877,8 +2877,8 @@ const Invite = {
       }
       const isTeacher = info.target_role === 'teacher';
       const isPersonal = !!info.person_name;
-      if(isTeacher) $('#invTitle').innerHTML = 'Стать<br>преподавателем';
-      body.innerHTML = `<p class="body2">${isTeacher ? `Вас пригласили преподавателем группы «${esc(info.group_name)}». После регистрации вы будете видеть очередь, журнал и статистику назначенных вам групп.` : isPersonal ? `Староста добавил тебя в состав группы «${esc(info.group_name)}» как ${esc(info.person_name)}. Имя уже заполнено — укажи почту и придумай пароль.` : `Тебя пригласили в группу «${esc(info.group_name)}». Заполни данные — и ты в очереди.`}</p>
+      if(isTeacher) $('#invTitle').innerHTML = 'Стать<br>куратором';
+      body.innerHTML = `<p class="body2">${isTeacher ? `Вас пригласили куратором группы «${esc(info.group_name)}». После регистрации вы будете видеть очередь, журнал и статистику назначенных вам групп.` : isPersonal ? `Староста добавил тебя в состав группы «${esc(info.group_name)}» как ${esc(info.person_name)}. Имя уже заполнено — укажи почту и придумай пароль.` : `Тебя пригласили в группу «${esc(info.group_name)}». Заполни данные — и ты в очереди.`}</p>
       <form id="invForm" style="margin-top:22px" novalidate>
         <div class="err" id="invErr"></div>
         <div class="field"><label for="invLast">Фамилия</label><input class="inp" id="invLast" autocomplete="family-name" autocapitalize="words" placeholder="Например, Петров"></div>
@@ -2886,7 +2886,7 @@ const Invite = {
         <div class="field"><label for="invEmail">Почта</label><input class="inp" id="invEmail" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="name@example.ru"></div>
         <div class="field"><label for="invPw">Пароль</label><div class="pwbox"><input class="inp" id="invPw" type="password" autocomplete="new-password" placeholder="Минимум 8 символов"><button type="button" class="eyebtn" id="invPwEye" aria-label="Показать пароль" tabindex="-1">${ICON.eye}</button></div></div>
         <div class="field"><label for="invPw2">Подтверждение пароля</label><input class="inp" id="invPw2" type="password" autocomplete="new-password" placeholder="Повтори пароль"></div>
-        <button class="btn btn-p" id="invGo" type="submit" style="margin-top:6px">${isTeacher ? 'Стать преподавателем' : 'Вступить в группу'}</button>
+        <button class="btn btn-p" id="invGo" type="submit" style="margin-top:6px">${isTeacher ? 'Стать куратором' : 'Вступить в группу'}</button>
         <button class="btn btn-q" id="invBack2" type="button" style="width:100%;margin-top:10px">У меня уже есть аккаунт</button>
       </form>`;
       $('#invBack2').onclick = back;
@@ -2916,11 +2916,11 @@ const Invite = {
           const { error } = await db.auth.signInWithPassword({ email, password: pw });
           if(error) throw error;
           Invite.clearParam();
-          toast(d.target_role === 'teacher' ? `Добро пожаловать! Вы — преподаватель группы «${d.group_name}».` : `Добро пожаловать в группу «${d.group_name}»!`);
+          toast(d.target_role === 'teacher' ? `Добро пожаловать! Вы — куратор группы «${d.group_name}».` : `Добро пожаловать в группу «${d.group_name}»!`);
           await Store.boot();
         }catch(x){
           err.textContent = authErrorMessage(x); err.classList.add('show');
-          btn.disabled = false; btn.textContent = isTeacher ? 'Стать преподавателем' : 'Вступить в группу';
+          btn.disabled = false; btn.textContent = isTeacher ? 'Стать куратором' : 'Вступить в группу';
         }
       });
     }).catch(e => {
@@ -3516,7 +3516,7 @@ function vQueue(){
     if(isMe) tags.push('<span class="tag blue">вы</span>');
     const rl = p.user_id && S.memberRoles ? S.memberRoles[p.user_id] : null;
     if(rl === 'leader' || rl === 'head') tags.push('<span class="tag">староста</span>');
-    if(p.user_id && S.profileRoles && S.profileRoles[p.user_id] === 'teacher') tags.push('<span class="tag">преподаватель</span>');
+    if(p.user_id && S.profileRoles && S.profileRoles[p.user_id] === 'teacher') tags.push('<span class="tag">куратор</span>');
     if(cur.has(p.id)) tags.push('<span class="tag blue">сейчас</span>');
     else if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
     const ord = S.orderMode && isLeader()
@@ -3797,7 +3797,7 @@ function vPeople(){
       if(p.user_id && p.user_id === S.user?.id) tags.push('<span class="tag blue">вы</span>');
       const rl = p.user_id && S.memberRoles ? S.memberRoles[p.user_id] : null;
       if(rl === 'leader' || rl === 'head') tags.push('<span class="tag">староста</span>');
-      if(p.user_id && S.profileRoles && S.profileRoles[p.user_id] === 'teacher') tags.push('<span class="tag">преподаватель</span>');
+      if(p.user_id && S.profileRoles && S.profileRoles[p.user_id] === 'teacher') tags.push('<span class="tag">куратор</span>');
       if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
       if(p.data?.paused) tags.push('<span class="tag">пауза</span>');
       if(!p.user_id) tags.push('<span class="tag red">без аккаунта</span>');
@@ -4289,7 +4289,7 @@ const adSecSet = (k, v) => { const s = adSecRaw(); s[k] = v; try{ localStorage.s
 /* ---------------- группы преподавателя (назначение админом) ---------------- */
 const TeacherGroups = {
   async open(teacherId){
-    const w = sheet(`<h3>Группы преподавателя</h3><p class="body2" style="margin-top:8px">Без групп преподаватель ничего не видит. Отметьте группы, которые он курирует.</p><div class="rows" id="tgList" style="margin-top:14px"><div class="row"><p class="body2">Загружаем…</p></div></div>`);
+    const w = sheet(`<h3>Группы куратора</h3><p class="body2" style="margin-top:8px">Без групп куратор ничего не видит. Отметьте группы, которые он курирует.</p><div class="rows" id="tgList" style="margin-top:14px"><div class="row"><p class="body2">Загружаем…</p></div></div>`);
     const list = w.querySelector('#tgList');
     try{
       const d = await Authz.callAccounts({ action:'teacher_assignments', teacher_id: teacherId });
@@ -4364,12 +4364,12 @@ async function vAdmin(){
         const isL = r === 'leader';
         const isT = S.profileRoles?.[p.user_id] === 'teacher';
         const btns = p.user_id !== S.user.id ? `<button class="linkbtn" data-role="${esc(p.user_id)}|${isL ? 0 : 1}">${isL ? 'Снять' : 'Староста'}</button>
-        ${isAdmin() ? `<button class="linkbtn" data-teacher="${esc(p.user_id)}|${isT ? 0 : 1}">${isT ? 'Снять преподавателя' : 'Преподаватель'}</button>` : ''}
+        ${isAdmin() ? `<button class="linkbtn" data-teacher="${esc(p.user_id)}|${isT ? 0 : 1}">${isT ? 'Снять куратора' : 'Куратор'}</button>` : ''}
         ${isAdmin() && isT ? `<button class="linkbtn" data-tgroups="${esc(p.user_id)}">Группы</button>` : ''}
         <button class="linkbtn" data-rst="${esc(p.id)}">Пароль</button>` : '';
         return `<div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><div class="grow"><b>${esc(p.name)}</b>${p.user_id === S.user.id ? ' <span class="tag">вы</span>' : ''}<div class="sub">${isL ? 'староста' : 'студент'}</div></div>${btns ? `<div style="display:flex;flex-wrap:wrap;gap:0 8px;margin-left:-4px">${btns}</div>` : ''}</div>`;
       }).join('')}
-      ${isAdmin() ? (tprofs.data || []).filter(t => !S.people.some(p => p.user_id === t.id)).map(t => `<div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><div class="grow"><b>${esc(t.display_name)}</b><div class="sub">преподаватель</div></div><div style="display:flex;flex-wrap:wrap;gap:0 8px;margin-left:-4px"><button class="linkbtn" data-tgroups="${esc(t.id)}">Группы</button><button class="linkbtn" data-teacher="${esc(t.id)}|0">Снять преподавателя</button></div></div>`).join('') : ''}
+      ${isAdmin() ? (tprofs.data || []).filter(t => !S.people.some(p => p.user_id === t.id)).map(t => `<div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><div class="grow"><b>${esc(t.display_name)}</b><div class="sub">куратор</div></div><div style="display:flex;flex-wrap:wrap;gap:0 8px;margin-left:-4px"><button class="linkbtn" data-tgroups="${esc(t.id)}">Группы</button><button class="linkbtn" data-teacher="${esc(t.id)}|0">Снять куратора</button></div></div>`).join('') : ''}
     </div>`) +
     (showInvites ? sec('invites', 'Приглашения', `<div id="invBox"></div>`) : '') +
     sec('queue', 'Состояние очереди', `
@@ -4442,7 +4442,7 @@ function paintAuditFeed(el){
   const rows = S._auditRows || [], nm = S._auditNames || new Map();
   const f = S.auditFilter || 'all';
   const cat = AUDIT_CATS[f] || AUDIT_CATS.all;
-  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', teacher_granted:'Выдан преподаватель', teacher_revoked:'Снят преподаватель', invite_created:'Приглашение создано', invite_revoked:'Приглашение отозвано', invite_accepted:'Вступление по приглашению', invite_dup_blocked:'Отклонён дубль из другой группы', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена', queue_reordered:'Очередь изменена', teacher_assigned:'Преподаватель назначен на группу', teacher_unassigned:'Преподаватель снят с группы', teacher_invited:'Преподаватель приглашён', person_restored:'Участник возвращён в группу', duty_started:'Дежурство начато', duty_start_srv:'Запуск дежурства зафиксирован', duty_finished:'Дежурство завершено', debt_writeoff:'Долг списан', data_purged:'Данные очищены' };
+  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', teacher_granted:'Выдан куратор', teacher_revoked:'Снят куратор', invite_created:'Приглашение создано', invite_revoked:'Приглашение отозвано', invite_accepted:'Вступление по приглашению', invite_dup_blocked:'Отклонён дубль из другой группы', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена', queue_reordered:'Очередь изменена', teacher_assigned:'Куратор назначен на группу', teacher_unassigned:'Куратор снят с группы', teacher_invited:'Куратор приглашён', person_restored:'Участник возвращён в группу', duty_started:'Дежурство начато', duty_start_srv:'Запуск дежурства зафиксирован', duty_finished:'Дежурство завершено', debt_writeoff:'Долг списан', data_purged:'Данные очищены' };
   const chips = Object.entries(AUDIT_CATS).map(([k, c]) =>
     `<button class="fchip${f === k ? ' on' : ''}" data-af="${k}">${c.label}</button>`).join('');
   let html = '', last = '';
