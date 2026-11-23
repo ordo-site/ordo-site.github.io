@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-173';})();</script>
+window.__ORDO_BUILD='ordo-174';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1845,6 +1845,9 @@ const Duty = {
     const c = S.state.current;
     if(!c) return;
     const nm = id => S.people.find(p => p.id === id)?.name || '?';
+    /* ordo-174: подписи кнопок отметок по роду человека: «Была/Сбежала».
+       «Не было» — безличное, одно для обоих родов. */
+    const mw = id => { const f = isFemale(nm(id)); return [f ? 'Была' : 'Был', 'Не было', f ? 'Сбежала' : 'Сбежал']; };
     const marks = {};
     const dset = new Set(debtorIds());
     const w = sheet(`<h3>Кто отдежурил?</h3>
@@ -1852,9 +1855,9 @@ const Duty = {
       <div style="margin-top:14px">${c.ids.map(id => `
         <div class="field"><label>${esc(nm(id))}${c.forIds?.[id] ? ' · за ' + esc(nm(c.forIds[id])) : ''}${dset.has(id) ? ' · должник' : ''}</label>
         <div class="seg3" data-person="${esc(id)}">
-          <button type="button" data-m="${esc(id)}|${STATUS.PRESENT}">Был</button>
-          <button type="button" data-m="${esc(id)}|${STATUS.ABSENT}">Не было</button>
-          <button type="button" data-m="${esc(id)}|${STATUS.ESCAPED}">Сбежал</button>
+          <button type="button" data-m="${esc(id)}|${STATUS.PRESENT}">${mw(id)[0]}</button>
+          <button type="button" data-m="${esc(id)}|${STATUS.ABSENT}">${mw(id)[1]}</button>
+          <button type="button" data-m="${esc(id)}|${STATUS.ESCAPED}">${mw(id)[2]}</button>
         </div></div>`).join('')}</div>
       ${c.assignComment ? `<p class="body2 clamp3" id="assignCommentText" style="margin-top:6px">Комментарий при назначении: ${esc(c.assignComment)}</p>
       <button class="linkbtn" id="assignCommentMore" style="margin-top:4px">Показать полностью</button>` : ''}
@@ -3241,6 +3244,29 @@ function paintPresence(){ /* admin-only online dots, updated live without full r
 function fullNames(pair){
   return (pair || []).map(p => p.name || '');
 }
+/* ordo-174: род по имени. people.name — «Фамилия Имя»: женский род, если
+   фамилия или имя кончается на «а»/«я», кроме заведомо мужских имён на
+   «а»/«я» (Никита, Илья, Кузьма, Фома, Данила, Гаврила, Савва).
+   Проверено по живому составу 3СА24Н: оба Никиты — мужской,
+   Анастасия/Валерия/Маргарита/Александра/Ангелина/Елизавета — женский.
+   Без имени — мужской по умолчанию, код не падает. Принимает строку
+   или объект с .name. */
+const MALE_A_NAMES = new Set(['никита','илья','кузьма','фома','данила','гаврила','савва']);
+function isFemale(p){
+  const name = typeof p === 'string' ? p : (p && p.name) || '';
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return false;
+  const given = parts[parts.length - 1];
+  if(MALE_A_NAMES.has(given.toLowerCase())) return false;
+  return /[ая]$/i.test(given) || /[ая]$/i.test(parts[0]);
+}
+/* ordo-174: слово статуса волонтёра по роду: «Был/Была», «Не был/Не была».
+   Остальные статусы («Ожидает», «Подтверждено», «Отклонено») — без рода. */
+function volWord(st, name){
+  if(st === 'attended') return isFemale(name) ? 'Была' : 'Был';
+  if(st === 'absent') return isFemale(name) ? 'Не была' : 'Не был';
+  return (VOL_ST[st] || [])[0] || st;
+}
 /* ordo-149: подсказка «Добавить на экран Домой» — один раз, только в мобильном
    браузере и только пока сайт не добавлен (standalone). PWA-мета уже в шапке. */
 function installHintHtml(){
@@ -3278,18 +3304,20 @@ function vHome(){
     if(isLeader()){
       liveMarks = `<div style="margin-top:16px">${now.ids.map(id => {
         const mk = marks[id] || STATUS.PRESENT;
+        const f = isFemale(nm(id)); /* ordo-174: отметки по роду человека */
         return `<div class="field" style="margin-top:10px"><label>${esc(nm(id))}${forTag(id)}</label>
           <div class="seg3 sm" data-live="${esc(id)}">
-            <button type="button" data-s="${STATUS.PRESENT}" class="${mk === STATUS.PRESENT ? 'on good' : ''}">Был</button>
-            <button type="button" data-s="${STATUS.ABSENT}" class="${mk === STATUS.ABSENT ? 'on warn' : ''}">Не был</button>
-            <button type="button" data-s="${STATUS.ESCAPED}" class="${mk === STATUS.ESCAPED ? 'on bad' : ''}">Сбежал</button>
+            <button type="button" data-s="${STATUS.PRESENT}" class="${mk === STATUS.PRESENT ? 'on good' : ''}">${f ? 'Была' : 'Был'}</button>
+            <button type="button" data-s="${STATUS.ABSENT}" class="${mk === STATUS.ABSENT ? 'on warn' : ''}">${f ? 'Не была' : 'Не был'}</button>
+            <button type="button" data-s="${STATUS.ESCAPED}" class="${mk === STATUS.ESCAPED ? 'on bad' : ''}">${f ? 'Сбежала' : 'Сбежал'}</button>
           </div></div>`;
       }).join('')}</div>`;
     }else{
       const badges = now.ids.map(id => {
         const mk = marks[id] || STATUS.PRESENT;
         if(mk === STATUS.PRESENT) return '';
-        const t = mk === STATUS.ABSENT ? '<span class="tag amber">не был</span>' : '<span class="tag red">сбежал</span>';
+        const f = isFemale(nm(id)); /* ordo-174: плашка по роду человека */
+        const t = mk === STATUS.ABSENT ? `<span class="tag amber">${f ? 'не была' : 'не был'}</span>` : `<span class="tag red">${f ? 'сбежала' : 'сбежал'}</span>`;
         return `<div class="body2" style="margin-top:6px">${esc(nm(id))} ${t}</div>`;
       }).join('');
       if(badges) liveMarks = `<div style="margin-top:12px">${badges}</div>`;
@@ -3416,6 +3444,7 @@ function whyHereLines(p){
   const q = currentQueue();
   const idx = q.findIndex(x => x.id === p.id);
   const lines = [];
+  const f = isFemale(p); /* ordo-174: род человека в карточке */
   if(idx >= 0) lines.push({ k:'В очереди', v:`№${idx + 1} из ${q.length}` });
   let lastDuty = null;
   for(let k = log.length - 1; k >= 0; k--){
@@ -3425,10 +3454,10 @@ function whyHereLines(p){
     if(it){ lastDuty = { en, it }; break; }
   }
   if(lastDuty){
-    const st = lastDuty.it.status === STATUS.PRESENT ? 'был' : lastDuty.it.status === STATUS.ABSENT ? 'не было' : 'сбежал';
+    const st = lastDuty.it.status === STATUS.PRESENT ? (f ? 'была' : 'был') : lastDuty.it.status === STATUS.ABSENT ? 'не было' : (f ? 'сбежала' : 'сбежал');
     lines.push({ k:'Последнее дежурство', v:`${dateShort(lastDuty.en.at)} — ${st}` });
   }
-  const subFor = [], subBy = [];
+  const subFor = [], subBy = [], subByNames = [];
   log.forEach(en => {
     if(!en || en.writeoff || !Array.isArray(en.people)) return;
     en.people.forEach((it, i) => {
@@ -3441,11 +3470,18 @@ function whyHereLines(p){
         const rep = en.people[i - 1];
         const nm = rep ? (S.people.find(x => x.id === rep.id)?.name || 'другой') : 'другой';
         subBy.push(`${nm} — ${dateShort(en.at)}`);
+        subByNames.push(nm);
       }
     });
   });
-  if(subFor.length) lines.push({ k:'Заменял', v: subFor.slice(-2).join('; ') + (subFor.length > 2 ? ` и ещё ${subFor.length - 2}` : '') });
-  if(subBy.length) lines.push({ k:'За него дежурил', v: subBy.slice(-2).join('; ') + (subBy.length > 2 ? ` и ещё ${subBy.length - 2}` : '') });
+  if(subFor.length) lines.push({ k: f ? 'Заменяла' : 'Заменял', v: subFor.slice(-2).join('; ') + (subFor.length > 2 ? ` и ещё ${subFor.length - 2}` : '') });
+  if(subBy.length){
+    /* ordo-174: местоимение — по человеку в карточке («него/неё»),
+       глагол — по заменявшему: один — «дежурил/дежурила»,
+       двое и больше — «дежурили» */
+    const verb = subBy.length === 1 ? (isFemale(subByNames[subByNames.length - 1]) ? 'дежурила' : 'дежурил') : 'дежурили';
+    lines.push({ k:`За ${f ? 'неё' : 'него'} ${verb}`, v: subBy.slice(-2).join('; ') + (subBy.length > 2 ? ` и ещё ${subBy.length - 2}` : '') });
+  }
   if(debtorIds().includes(p.id)){
     let debtAt = '';
     for(let k = log.length - 1; k >= 0; k--){
@@ -3457,7 +3493,7 @@ function whyHereLines(p){
     lines.push({ k:'Долг', v: debtAt ? `пропущенное дежурство от ${debtAt} — дежурит вне очереди` : 'пропущенное дежурство — дежурит вне очереди' });
   }
   const c = Achv.counts(log, p.id);
-  if(c.absent + c.escaped > 0) lines.push({ k:'Пропуски', v:`не было: ${c.absent}, сбежал: ${c.escaped}` });
+  if(c.absent + c.escaped > 0) lines.push({ k:'Пропуски', v:`не было: ${c.absent}, ${f ? 'сбежала' : 'сбежал'}: ${c.escaped}` });
   for(let k = log.length - 1; k >= 0; k--){
     const en = log[k];
     if(en && en.kind === 'reorder' && en.action && en.action.includes(p.name)){
@@ -3493,7 +3529,7 @@ function vQueue(){
   const head = `<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Очередь</h1>
     <span style="display:flex;gap:4px;align-items:baseline"><button class="linkbtn" id="qrBtn">QR на дверь</button>${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</span></div>
     <p class="body2">${q.length} ${peopleWord(q.length)}</p>
-    <p class="tiny" style="margin-top:4px">Порядок — история дежурств и перестановки старосты. Нажми на человека, чтобы узнать, почему он здесь.</p>`;
+    <p class="tiny" style="margin-top:4px">Порядок — история дежурств и перестановки старосты. Нажми на человека, чтобы узнать подробности.</p>`;
   shell(`${head}<div class="sec qlist" id="qList" style="margin-top:16px">${rows || '<p class="body2">Пока пусто.</p>'}</div>`, 'queue');
   const t = $('#ordTgl'); if(t) t.onclick = () => { S.orderMode = !S.orderMode; render(); };
   const qb = $('#qrBtn'); if(qb) qb.onclick = () => { S.view = 'qr'; render(); };
@@ -3895,7 +3931,9 @@ async function vVolunteer(){
         const st = mine[e.id];
         const info = VOL_ST[st];
         const meta = [fmt(e.starts_at), e.hours > 0 ? e.hours + ' ч' : '', e.slots ? 'мест: ' + e.slots : ''].filter(Boolean).join(' · ');
-        const tag = st ? `<span class="tag ${info ? info[1] : 'blue'}">${esc(info ? info[0] : st)}</span>` : '';
+        /* ordo-174: свой статус — по своему роду («Был/Была») */
+        const myNm = (S.people.find(p => p.user_id === S.user?.id)?.name) || S.profile?.display_name || '';
+        const tag = st ? `<span class="tag ${info ? info[1] : 'blue'}">${esc(volWord(st, myNm))}</span>` : '';
         const btn = !st ? `<button class="btn btn-p" style="min-height:44px;flex:1" data-vs="${esc(e.id)}">Записаться</button>`
           : (st === 'pending' || st === 'approved') ? `<button class="btn btn-q" style="min-height:44px;flex:1" data-vc="${esc(e.id)}">Отменить запись</button>` : '';
         return `<div class="row" style="align-items:flex-start"><div class="grow">
@@ -4055,12 +4093,12 @@ const VolM = {
           const info = VOL_ST[x.o_status];
           const acts = x.o_status === 'pending'
             ? [['approved','Подтвердить','btn-q'],['rejected','Отклонить','btn-danger-q']]
-            : x.o_status === 'approved' ? [['attended','Был','btn-q'],['absent','Не был','btn-danger-q']] : [];
+            : x.o_status === 'approved' ? [['attended', volWord('attended', x.o_name), 'btn-q'],['absent', volWord('absent', x.o_name), 'btn-danger-q']] : [];
           return `<div class="row" style="align-items:flex-start"><div class="grow">
             <b>${esc(x.o_name)}</b>
             <div class="sub">${esc(x.o_group || '')}</div>
             ${acts.length ? `<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${acts.map(a => `<button class="btn ${a[2]}" style="min-height:44px;width:100%" data-vd="${esc(x.o_user_id)}|${a[0]}">${a[1]}</button>`).join('')}</div>` : ''}
-          </div><span class="tag ${info ? info[1] : 'blue'}">${esc(info ? info[0] : x.o_status)}</span></div>`;
+          </div><span class="tag ${info ? info[1] : 'blue'}">${esc(volWord(x.o_status, x.o_name))}</span></div>`;
         }).join('') + `</div>` : `<p class="body2" style="color:var(--ter)">Пока никто не записался.</p>`;
         body.querySelectorAll('[data-vd]').forEach(b => b.onclick = async () => {
           const [uid, st] = b.dataset.vd.split('|');
@@ -4136,6 +4174,7 @@ function vProfile(){
   });
   /* ordo-129-fair: вклад и прогноз — только чтение log/queue */
   const subN = me ? Fair.subCount(log, me.id) : 0;
+  const meF = me ? isFemale(me) : false; /* ordo-174: подписи статистики по роду владельца профиля */
   const myIdx = myPosition();
   const iOwe = me ? debtorIds().includes(me.id) : false;
   const paused = S.group?.settings?.paused;
@@ -4210,12 +4249,12 @@ function vProfile(){
 
     ${me ? `<div class="sec"><div class="eyebrow" style="margin-bottom:10px">Мои дежурства</div>
       <div class="stat-grid">
-        <div class="stat-card"><span class="stat-ic good">✓</span><div class="stat-tx"><div class="stat-num">${pr}</div><div class="stat-lb">Присутствовал</div></div></div>
-        <div class="stat-card"><span class="stat-ic bad">✕</span><div class="stat-tx"><div class="stat-num">${ab}</div><div class="stat-lb">Отсутствовал</div></div></div>
-        <div class="stat-card"><span class="stat-ic warn">↩︎</span><div class="stat-tx"><div class="stat-num">${es}</div><div class="stat-lb">Завершил досрочно</div></div></div>
+        <div class="stat-card"><span class="stat-ic good">✓</span><div class="stat-tx"><div class="stat-num">${pr}</div><div class="stat-lb">${meF ? 'Присутствовала' : 'Присутствовал'}</div></div></div>
+        <div class="stat-card"><span class="stat-ic bad">✕</span><div class="stat-tx"><div class="stat-num">${ab}</div><div class="stat-lb">${meF ? 'Отсутствовала' : 'Отсутствовал'}</div></div></div>
+        <div class="stat-card"><span class="stat-ic warn">↩︎</span><div class="stat-tx"><div class="stat-num">${es}</div><div class="stat-lb">${meF ? 'Завершила досрочно' : 'Завершил досрочно'}</div></div></div>
         <div class="stat-card"><span class="stat-ic total">#</span><div class="stat-tx"><div class="stat-num">${pr + ab + es}</div><div class="stat-lb">Всего дежурств</div></div></div>
       </div>
-      <div class="rows" style="margin-top:10px"><div class="row"><div class="grow">Заменял других</div><b>${subN}</b></div>
+      <div class="rows" style="margin-top:10px"><div class="row"><div class="grow">${meF ? 'Заменяла других' : 'Заменял других'}</div><b>${subN}</b></div>
       ${fcLine}</div>
       </div>` : ''}
 
