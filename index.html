@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-178';})();</script>
+window.__ORDO_BUILD='ordo-179';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -858,6 +858,74 @@ const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE
 const isStaff  = () => ['admin','head','teacher'].includes(S.profile?.role);
 const isAdmin  = () => S.profile?.role === 'admin';
 const isLeader = () => (S.demo && S.demoLeader) || S.membership?.role === 'leader' || isStaff(); /* ordo-142: в демке староста — переключателем, только на демо-данных */
+/* ordo-179: пауза с причиной и датой окончания.
+   settings: paused (bool), pause_reason (строка), pause_until ('YYYY-MM-DD').
+   Дата — включительно: пауза действует весь день until, а с утра следующего
+   дня очередь считается возобновлённой (сверка по московской дате). */
+const Pause = {
+  REASONS: ['Каникулы', 'Практика'],
+  MONTHS: ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'],
+  info(){ const st = S.group?.settings || {}; return { paused: !!st.paused, reason: st.pause_reason || '', until: st.pause_until || '' }; },
+  mskToday(){ try{ return new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Moscow' }).format(new Date()); }catch(_){ return new Date().toISOString().slice(0, 10); } },
+  expired(){ const i = Pause.info(); return i.paused && !!i.until && i.until < Pause.mskToday(); },
+  active(){ return Pause.info().paused && !Pause.expired(); },
+  untilText(until){ const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(until || ''); return m ? `${+m[3]} ${Pause.MONTHS[+m[2] - 1]}` : ''; },
+  label(){ const i = Pause.info(); const d = Pause.untilText(i.until); return [i.reason, d ? 'до ' + d : ''].filter(Boolean).join(' — ') || 'Очередь на паузе'; },
+  /* ставить/снимать могут староста (профиль head — старший староста) и админ;
+     сервер (RPC set_group_pause) проверяет то же самое; в демо — гость со
+     включённым «смотреть как староста» (isLeader через demoLeader) */
+  canPause(){ return S.demo ? isLeader() : ['admin', 'head'].includes(S.profile?.role); },
+  async maybeAutoResume(){
+    if(!Pause.expired()){ S._pauseAuto = null; return; }
+    const key = (S.group?.id || '') + ':' + Pause.info().until;
+    if(S._pauseAuto === key) return;
+    S._pauseAuto = key;
+    try{ await Authz.setPaused(false, { silent:true }); }
+    catch(e){ S._pauseAuto = null; }
+  },
+  openSheet(){
+    if(!Pause.canPause()){ toast('Паузу ставит только староста или администратор'); return; }
+    if(Pause.active()){
+      confirmBox('Возобновить назначения?', 'Сейчас: ' + Pause.label() + '. Очередь продолжится с того же места.', 'Возобновить', () => Authz.setPaused(false));
+      return;
+    }
+    const d = new Date(Date.now() + 14 * 864e5);
+    const pad = n => String(n).padStart(2, '0');
+    const defUntil = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const w = sheet(`<h3>Приостановить назначения</h3>
+      <p class="body2" style="margin-top:8px">Пока пауза действует, новые дежурства не назначаются, а очередь стоит на месте.</p>
+      <div class="field" style="margin-top:14px"><label>Причина</label>
+        <div class="seg3" id="psReason">
+          <button type="button" data-r="Каникулы" class="on">Каникулы</button>
+          <button type="button" data-r="Практика">Практика</button>
+          <button type="button" data-r="__custom">Своя</button>
+        </div></div>
+      <div class="field" id="psCustomWrap" hidden style="margin-top:10px"><label>Своя причина</label>
+        <input class="inp" id="psCustom" maxlength="60" autocomplete="off" placeholder="Например: ремонт в кабинете"></div>
+      <div class="field" style="margin-top:10px"><label>Пауза до (включительно)</label>
+        <input class="inp" id="psUntil" type="date" value="${defUntil}"></div>
+      <div class="actions"><button class="btn btn-q" id="psNo">Отмена</button>
+      <button class="btn btn-p" id="psYes">Приостановить</button></div>`);
+    let sel = 'Каникулы';
+    w.querySelectorAll('#psReason button').forEach(b => b.onclick = () => {
+      w.querySelectorAll('#psReason button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      sel = b.dataset.r;
+      w.querySelector('#psCustomWrap').hidden = sel !== '__custom';
+      if(sel === '__custom') setTimeout(() => w.querySelector('#psCustom')?.focus(), 80);
+    });
+    w.querySelector('#psNo').onclick = closeSheet;
+    w.querySelector('#psYes').onclick = () => {
+      const reason = sel === '__custom' ? w.querySelector('#psCustom').value.trim() : sel;
+      const until = w.querySelector('#psUntil').value;
+      if(!reason){ toast('Укажите причину паузы'); return; }
+      if(!until){ toast('Укажите дату окончания паузы'); return; }
+      if(until < Pause.mskToday()){ toast('Дата окончания уже прошла'); return; }
+      closeSheet();
+      Authz.setPaused(true, { reason, until });
+    };
+  }
+};
 const dutyWindowOpen = () => {
   const p = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false})
     .formatToParts(new Date()).reduce((a,x)=>(a[x.type]=x.value,a),{});
@@ -1287,7 +1355,7 @@ const Demo = {
       demo:true, demoLeader:false,
       user:{ id:'demo', email:'demo@ordo', email_confirmed_at:new Date().toISOString() },
       profile:{ role:'student', display_name:'Гость (демо)' },
-      group:{ id:'demo', name:'3СА24Н · демо' },
+      group:{ id:'demo', name:'3СА24Н · демо', settings:{} },
       groups:[], membership:{ group_id:'demo', role:'student' },
       memberRoles:{}, groupCurators:curators || [], people, state, stateVer:null,
       view:'home', orderMode:false, fromCache:false, busy:false,
@@ -2670,13 +2738,26 @@ const Authz = {
         await Store.loadGroup(); render(); toast('Состояние восстановлено');
       }), true);
   },
-  async setPaused(p){
+  async setPaused(p, opts){
+    const o = opts || {};
+    if(!Pause.canPause()){ toast('Паузу ставит только староста или администратор'); return; }
     await run(async () => {
-      const r = await db.rpc('set_group_pause', { p_group_id:S.group.id, p_paused:p });
-      if(r.error) throw r.error;
-      S.group.settings = { ...(S.group.settings || {}), paused:p }; /* loadGroup doesn't refetch groups row */
+      const reason = p ? String(o.reason || '').trim() : null;
+      const until = p ? String(o.until || '').trim() : null;
+      if(S.demo){
+        /* ordo-179: в демо пауза — только локально, в живую базу не ходим */
+        S.group.settings = { ...(S.group.settings || {}), paused:p };
+        if(p){ S.group.settings.pause_reason = reason; S.group.settings.pause_until = until; }
+        else { delete S.group.settings.pause_reason; delete S.group.settings.pause_until; }
+      }else{
+        const r = await db.rpc('set_group_pause', { p_group_id:S.group.id, p_paused:p, p_reason:reason, p_until:until });
+        if(r.error) throw r.error;
+        S.group.settings = { ...(S.group.settings || {}), paused:p }; /* loadGroup doesn't refetch groups row */
+        if(p){ S.group.settings.pause_reason = reason; S.group.settings.pause_until = until; }
+        else { delete S.group.settings.pause_reason; delete S.group.settings.pause_until; }
+      }
       await Store.loadGroup(); render();
-      toast(p ? 'Назначения приостановлены' : 'Назначения возобновлены');
+      if(!o.silent) toast(p ? 'Назначения приостановлены' : 'Назначения возобновлены');
     });
   },
   async exportExcel(){
@@ -3310,7 +3391,7 @@ function vHome(){
   const dnames = debtorIds().map(id => S.people.find(p => p.id === id)?.name).filter(Boolean);
   const me = S.people.find(p => p.user_id === S.user?.id);
   const meIdx = myPosition();
-  const paused = S.group?.settings?.paused;
+  const paused = Pause.active(); /* ordo-179: истёкшая пауза — уже не пауза */
   /* ordo-168: следующие пары нужны уже в hero пустого состояния
      (подпись «Ближайшее — <дата>»); объявлены здесь, а не у nextCard. */
   const pairs = nextPairs(3);
@@ -3356,14 +3437,14 @@ function vHome(){
     const mskWd = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Moscow', weekday: 'short' })
       .formatToParts(new Date()).find(p => p.type === 'weekday')?.value;
     const isWknd = mskWd === 'Sat' || mskWd === 'Sun';
-    const sub = paused ? 'Очередь на паузе.'
+    const sub = paused ? Pause.label() + '.'
       : !nextD ? 'Очередь пуста.'
       : isWknd ? `Ближайшее — ${nextD.toLocaleDateString('ru-RU', { weekday: 'long' })}, ${nextD.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`
       : `Ближайшее — ${Fair.dateText(nextD)}`;
     hero = `<h1 class="hero hero-empty">${isWknd ? 'Выходной' : 'Сегодня свободно'}</h1>
       <p class="body2" style="margin-top:6px">${esc(sub)}</p>`;
     if(isLeader()){
-      if(paused) action = `<div class="notice warn">Назначения приостановлены.</div>`;
+      if(paused) action = `<div class="notice warn">Назначения приостановлены: ${esc(Pause.label())}.</div>`;
       else if(isStaff() || dutyWindowOpen()) action = `<div style="margin-top:26px"><button class="btn btn-p" id="startBtn">Начать дежурство</button></div>`;
       else action = `<div style="margin-top:26px"><button class="btn btn-p" id="startBtn" data-closed="1" style="opacity:.45">Начать дежурство</button></div>`;
     }
@@ -3404,7 +3485,7 @@ function vHome(){
     ? `<button class="mecard" id="meCard"><span class="eyebrow">Ваша очередь</span>
       <span class="me-num">№${meIdx + 1} <span class="me-of">из ${q.length}</span></span>
       <span class="fairbar" aria-hidden="true"><i style="width:${pct}%"></i></span>
-      <span class="body2">${paused ? 'Очередь на паузе' : isDebtor ? 'Вне очереди: долг' : inCurrent ? 'Вы дежурите сегодня' : fc ? `Следующее дежурство — <b>${esc(fc)}</b> · ${esc(Fair.countdownText(fcDate))}` : 'Вы в очереди'}</span></button>`
+      <span class="body2">${paused ? esc(Pause.label()) : isDebtor ? 'Вне очереди: долг' : inCurrent ? 'Вы дежурите сегодня' : fc ? `Следующее дежурство — <b>${esc(fc)}</b> · ${esc(Fair.countdownText(fcDate))}` : 'Вы в очереди'}</span></button>`
     : '';
   /* ordo-159: кто дежурил последним — последняя засчитанная запись журнала */
   const lastEntry = (S.state.log || []).filter(en => en && en.counted && Array.isArray(en.people) && en.people.length).pop();
@@ -4207,9 +4288,9 @@ function vProfile(){
   const meF = me ? isFemale(me) : false; /* ordo-174: подписи статистики по роду владельца профиля */
   const myIdx = myPosition();
   const iOwe = me ? debtorIds().includes(me.id) : false;
-  const paused = S.group?.settings?.paused;
+  const paused = Pause.active(); /* ordo-179: истёкшая пауза — уже не пауза */
   const fcLine = !me ? '' : paused
-    ? `<div class="row"><div class="grow">Следующее дежурство</div><b>очередь на паузе</b></div>`
+    ? `<div class="row"><div class="grow">Следующее дежурство</div><b>${esc(Pause.label())}</b></div>`
     : iOwe
       ? `<div class="row"><div class="grow">Следующее дежурство</div><b>вне очереди: долг</b></div>`
       : myIdx >= 0
@@ -4365,7 +4446,7 @@ async function vAdmin(){
     if(_gen !== _vAdminGen || S.group?.id !== gid) return;
     if(members.error) throw members.error;
     const mrole = new Map((members.data || []).map(m => [m.user_id, m.role]));
-    const paused = !!S.group?.settings?.paused;
+    const paused = Pause.active(); /* ordo-179: истёкшая пауза — уже не пауза */
     const adOpen = adSecGet();
     const showInvites = canInvite();
     let secN = 0;
@@ -4404,7 +4485,7 @@ async function vAdmin(){
     (showInvites ? sec('invites', 'Приглашения', `<div id="invBox"></div>`) : '') +
     sec('queue', 'Состояние очереди', `
     <div class="rows">
-      <button class="row" id="adPause"><div class="grow"><b>${paused ? 'Возобновить назначения' : 'Приостановить назначения'}</b></div><span class="chev">›</span></button>
+      ${Pause.canPause() ? `<button class="row" id="adPause"><div class="grow"><b>${paused ? 'Возобновить назначения' : 'Приостановить назначения'}</b>${paused ? `<div class="sub">${esc(Pause.label())}</div>` : ''}</div><span class="chev">›</span></button>` : ''}
       ${(vers.data || []).map(v => `<div class="row"><div class="grow">${esc(fmt(v.saved_at))}</div><button class="linkbtn" data-ver="${v.id}">Вернуть</button></div>`).join('') || '<div class="row"><div class="grow body2">Версий пока нет</div></div>'}
     </div>`) +
     sec('events', 'События', `
@@ -4436,7 +4517,7 @@ async function vAdmin(){
   body.querySelectorAll('[data-tgroups]').forEach(b => b.onclick = () => TeacherGroups.open(b.dataset.tgroups));
     body.querySelectorAll('[data-rst]').forEach(b => b.onclick = () => Authz.resetDialog(b.dataset.rst));
     body.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => Authz.restoreVersion(b.dataset.ver));
-    $('#adPause').onclick = () => Authz.setPaused(!paused);
+    const ap = $('#adPause'); if(ap) ap.onclick = () => Pause.openSheet();
     $('#adExp').onclick = () => Authz.exportExcel();
     renderAuditFeed($('#adAudit'), gid);
     if(!freshChrome){ body.classList.remove('vin'); void body.offsetWidth; body.classList.add('vin'); }
@@ -4547,6 +4628,7 @@ function render(){
   if(S.demo) Demo.ensureMe(); /* ordo-132-demo: привязка демо-«я» — до каждого рендера */
   if(!S.user){ Auth.login(); return; }
   if(!S.group) return;
+  Pause.maybeAutoResume(); /* ordo-179: срок паузы прошёл — снять её (показ и так считает её снятой) */
   const v = S.view;
   if(v === 'queue') vQueue();
   else if(v === 'people' && isLeader()) vPeople();
