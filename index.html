@@ -33,7 +33,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-181';})();</script>
+window.__ORDO_BUILD='ordo-182';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -164,11 +164,13 @@ main.screen{padding:26px 0 calc(120px + env(safe-area-inset-bottom,0px))}
 .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px}
 /* ordo-166: шапка админки: «Администрирование» (30px) + «Назад» не влезали
    в 390px — кнопка обрезалась у правого края. На узких экранах заголовок
-   админки меньше (25px ≈ 271px + зазор + кнопка ≈ 336px < 350px контента),
-   остальные экраны не тронуты. */
+   админки меньше (24px ≈ 260px + зазор + кнопка ≈ 344px < 350px контента),
+   остальные экраны не тронуты. ordo-182: капсула «Назад» шире текстовой
+   кнопки — зазор 8px, заголовок 24px; многоточие — страховка от
+   переполнения, если шрифт на устройстве шире. */
 @media (max-width:480px){
-  .sec-head.adm{gap:12px}
-  .sec-head.adm .stitle{font-size:25px}
+  .sec-head.adm{gap:8px}
+  .sec-head.adm .stitle{font-size:24px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 
 /* ---------- buttons ---------- */
@@ -181,13 +183,13 @@ main.screen{padding:26px 0 calc(120px + env(safe-area-inset-bottom,0px))}
 .spin{display:inline-block;flex:none;border-radius:50%;border:2.5px solid rgba(128,128,128,.35);border-top-color:currentColor;animation:rot .7s linear infinite}
 .btn .spin{width:18px;height:18px}
 @keyframes rot{to{transform:rotate(360deg)}}
-.linkbtn{color:var(--accent);font-size:15px;font-weight:500;padding:10px 4px;transition:transform .12s var(--spring)}
+.linkbtn{display:inline-flex;align-items:center;justify-content:center;flex:none;background:var(--fill);color:var(--accent);font-size:15px;font-weight:600;padding:9px 15px;border-radius:999px;white-space:nowrap;transition:transform .12s var(--spring)}
 .linkbtn:active{transform:scale(.96)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .skip{position:fixed;top:calc(10px + env(safe-area-inset-top));left:12px;z-index:99999;background:var(--bg2);color:var(--text);border:1px solid var(--hair);border-radius:12px;padding:10px 16px;font-size:15px;font-weight:600;text-decoration:none;transform:translateY(-160%);transition:transform .2s var(--spring)}
 .skip:focus{transform:translateY(0)}
-.linkbtn.danger{color:var(--red)}
-/* ordo-181: капсулы-кнопки только в «Доступе» — .linkbtn вне админки не тронут */
+.linkbtn.danger{background:rgba(255,69,58,.14);color:var(--red)}
+/* ordo-182: .linkbtn — капсула в духе .accessbtn (тот же фон, скругление, отступы); отличие — акцентный текст вместо белого */
 .accessbtn{background:var(--fill);color:var(--text);font-size:15px;font-weight:600;padding:9px 15px;border-radius:999px;transition:transform .12s var(--spring)}
 .accessbtn:active{transform:scale(.96)}
 .accessbtn.primary{background:var(--accent);color:var(--accent-ink)}
@@ -405,7 +407,7 @@ textarea.inp,.row .grow,.row .sub,.hrow .grow,.body2{overflow-wrap:anywhere;word
 input::-ms-reveal,input::-ms-clear{display:none}
 @media (hover:hover) and (pointer:fine){
   .btn:not([disabled]):hover,.iconbtn:hover{filter:brightness(1.1)}
-  .linkbtn:hover{text-decoration:underline;text-underline-offset:3px}
+  .linkbtn:hover{filter:brightness(1.12)}
   .tab:hover{color:var(--sec)}
   .fchip:hover{border-color:var(--sec);color:var(--text)}
   .gmenu button:hover{background:var(--fill)}
@@ -2853,9 +2855,9 @@ const Invites = {
       list.innerHTML = rows.length ? rows.map(inv => {
         const expired = new Date(inv.expires_at).getTime() < Date.now();
         const pname = inv.person_id ? ((S.people.find(pp => pp.id === inv.person_id) || {}).name || 'участник') : null;
-        return `<div class="row"><div class="grow"><b>${pname ? 'Ссылка для ' + esc(pname) : 'Ссылка от ' + esc(fmt(inv.created_at))}</b>${inv.target_role === 'teacher' ? ' <span class="tag">куратор</span>' : ''}<div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
-        ${inv.token_plain ? `<button class="linkbtn" data-invcopy="${esc(inv.token_plain)}">Копировать</button>` : ''}
-        <button class="linkbtn danger" data-invrev="${esc(inv.id)}">Отозвать</button></div>`;
+        return `<div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><div class="grow"><b>${pname ? 'Ссылка для ' + esc(pname) : 'Ссылка от ' + esc(fmt(inv.created_at))}</b>${inv.target_role === 'teacher' ? ' <span class="tag">куратор</span>' : ''}<div class="sub">${expired ? 'истекла' : 'действует до ' + esc(fmt(inv.expires_at))}</div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">${inv.token_plain ? `<button class="linkbtn" data-invcopy="${esc(inv.token_plain)}">Копировать</button>` : ''}
+        <button class="linkbtn danger" data-invrev="${esc(inv.id)}">Отозвать</button></div></div>`;
       }).join('') : '<div class="row"><p class="body2">Действующих ссылок нет.</p></div>';
       list.querySelectorAll('[data-invrev]').forEach(b => b.onclick = async () => {
         try{
@@ -2901,7 +2903,7 @@ const Invites = {
 /* ---------------- массовое добавление с личными ссылками (ordo-96) ---------------- */
 const BulkAdd = {
   open(){
-    const rowHtml = () => `<div class="bkRow" style="display:flex;gap:8px;margin-top:10px"><input class="inp bkLast" placeholder="Фамилия" autocomplete="off" autocapitalize="words" style="flex:1;min-width:0"><input class="inp bkFirst" placeholder="Имя" autocomplete="off" autocapitalize="words" style="flex:1;min-width:0"><button type="button" class="linkbtn danger bkDel" aria-label="Убрать строку" style="flex:none;padding:0 4px">×</button></div>`;
+    const rowHtml = () => `<div class="bkRow" style="display:flex;gap:8px;margin-top:10px"><input class="inp bkLast" placeholder="Фамилия" autocomplete="off" autocapitalize="words" style="flex:1;min-width:0"><input class="inp bkFirst" placeholder="Имя" autocomplete="off" autocapitalize="words" style="flex:1;min-width:0"><button type="button" class="linkbtn danger bkDel" aria-label="Убрать строку" style="flex:none;align-self:center;padding:9px 12px">×</button></div>`;
     const w = sheet(`<h3 id="bkTitle">Добавить участников</h3><div id="bkBody">
       <p class="body2" style="margin-top:6px">По одному человеку в строке. Каждому создастся личная ссылка — она останется в «Приглашениях», разошлёшь когда удобно. Если человек уже есть в составе без аккаунта, ссылка привяжется к нему.</p>
       <div id="bkRows">${rowHtml()}</div>
@@ -2936,7 +2938,11 @@ const BulkAdd = {
     };
   },
   results(w, results){
-    w.querySelector('#bkTitle').textContent = 'Ссылки готовы';
+    /* ordo-182: заголовок — через .sheet h3, а не #bkTitle: sheet()
+       переименовывает первый h3 шторки в sheetTitle-… (a11y), поэтому
+       '#bkTitle' после open() уже нет — results() падал с TypeError,
+       и catch в bkGo показывал ошибку вместо «Ссылки готовы». */
+    w.querySelector('.sheet h3').textContent = 'Ссылки готовы';
     w.querySelector('#bkBody').innerHTML = `
       <p class="body2" style="margin-top:6px">Разошли каждому его ссылку в личку. Они также останутся в «Приглашениях» — можно переоткрыть и скопировать позже.</p>
       <div class="rows" style="margin-top:12px">${results.map(r => r.link
@@ -3681,7 +3687,7 @@ function vQueue(){
       <span class="qname">${esc(p.name)}</span>${tags.join(' ')}${ord}</div>`;
   }).join('');
   const head = `<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Очередь</h1>
-    <span style="display:flex;gap:4px;align-items:baseline"><button class="linkbtn" id="qrBtn">QR на дверь</button>${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</span></div>
+    <span style="display:flex;gap:8px;align-items:baseline"><button class="linkbtn" id="qrBtn">QR на дверь</button>${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</span></div>
     <p class="body2">${q.length} ${peopleWord(q.length)}</p>
     ${(S.groupCurators && S.groupCurators.length) ? `<p class="tiny" style="margin-top:2px">Куратор: ${esc(S.groupCurators.join(', '))}</p>` : ''}
     <p class="tiny" style="margin-top:4px">Порядок — история дежурств и перестановки старосты. Нажми на человека, чтобы узнать подробности.</p>`;
@@ -3961,12 +3967,12 @@ function vPeople(){
         <button class="linkbtn danger" data-rm="${esc(p.id)}">Убрать</button>`;
       return `<div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><div style="display:flex;align-items:center;gap:12px"><div class="avatar">${initials(p.name)}${isAdmin() && p.user_id ? `<span class="ondot${S.online instanceof Set && S.online.has(p.user_id) ? '' : ' hidden'}" data-ondot="${esc(p.user_id)}"></span>` : ''}</div>
         <div class="grow"><b>${esc(p.name)}</b>${tags.length ? `<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">${tags.join('')}</div>` : ''}</div></div>
-        <div style="display:flex;flex-wrap:wrap;gap:0 8px;margin-left:54px">${pbtns}</div></div>`;
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-left:54px">${pbtns}</div></div>`;
     }).join('');
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Группа</h1></div>
     ${(canInviteP || isStaff()) ? `<div style="display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center">
-    ${canInviteP ? '<button class="linkbtn" id="invP" style="white-space:nowrap;padding:2px 0">Приглашения</button>' : ''}
-    ${canInviteP ? '<button class="linkbtn" id="bulkP" style="white-space:nowrap;padding:2px 0">Добавить участников</button>' : ''}</div>` : ''}
+    ${canInviteP ? '<button class="linkbtn" id="invP">Приглашения</button>' : ''}
+    ${canInviteP ? '<button class="linkbtn" id="bulkP">Добавить участников</button>' : ''}</div>` : ''}
     <p class="body2" style="margin-top:10px">${S.people.length} ${peopleWord(S.people.length)}</p>
     <div class="field" style="margin-top:14px"><input class="inp" id="pSearch" placeholder="Найти человека" autocomplete="off"></div>
     <div class="rows" id="pList">${list()}</div>
