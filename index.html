@@ -10,7 +10,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="author" content="Дамир Таджиев">
 <meta name="copyright" content="© 2026 Дамир Таджиев. Все права защищены.">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjMDAwIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSI1MCIgcj0iMjEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxMSIvPjxjaXJjbGUgY3g9Ijc2IiBjeT0iNTAiIHI9IjEzIiBmaWxsPSIjMEE4NEZGIi8+PC9zdmc+">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjMDAwIi8+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTIgMCkiPjxyZWN0IHg9IjE4IiB5PSIyMyIgd2lkdGg9IjUyIiBoZWlnaHQ9IjE1IiByeD0iNy41IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iODIiIGN5PSIzMC41IiByPSI3LjUiIGZpbGw9IiM0ZDk0ZmYiLz48cmVjdCB4PSIxOCIgeT0iNDQiIHdpZHRoPSI0OCIgaGVpZ2h0PSIxNSIgcng9IjcuNSIgZmlsbD0iI2ZmZiIvPjxyZWN0IHg9IjE4IiB5PSI2NSIgd2lkdGg9IjMyIiBoZWlnaHQ9IjE1IiByeD0iNy41IiBmaWxsPSIjZmZmIi8+PC9nPjwvc3ZnPg==">
 <meta name="theme-color" content="#000000">
 <meta name="description" content="Ordo — дежурство без лишнего. Очередь дежурств для студенческих групп: назначения, отметки и история.">
 <meta property="og:type" content="website">
@@ -2557,13 +2557,11 @@ body.hacker .qrow {
   .hero{font-size:clamp(38px,4.4vw,56px)}
 }
 
-/* ordo-178 mono: black / white / grey with a little blue, bigger touch targets, less clutter.
+/* ordo-180 oled: pure black / white, blue only as an accent, big touch targets, less clutter.
    Dark theme only. Reversible: delete this block. */
-:root{--bg:#000;--bg2:#0e0e10;--text:#fff;--sec:#c2c2ca;--ter:#8f8f99;--hair:rgba(255,255,255,.14);--fill:rgba(255,255,255,.085);
-  --accent:#4d94ff;--accent-ink:#fff;--accent-soft:rgba(77,148,255,.16);--sheet:#141416;--bar:rgba(10,10,12,.74)}
+:root{--bg:#000;--bg2:#070708;--text:#fff;--sec:#d3d3d9;--ter:#a4a4ad;--hair:rgba(255,255,255,.18);--fill:rgba(255,255,255,.09);
+  --accent:#4d94ff;--accent-ink:#fff;--accent-soft:rgba(77,148,255,.14);--sheet:#0a0a0b;--bar:rgba(0,0,0,.9)}
 body:where(:not(.light):not(.glam):not(.hacker)){background:transparent}
-body:where(:not(.light):not(.glam):not(.hacker))::before{content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;
-  background:radial-gradient(62% 30% at 50% -8%,rgba(70,125,255,.2),transparent 72%),radial-gradient(40% 24% at 100% 100%,rgba(70,125,255,.08),transparent 70%)}
 body:where(:not(.light):not(.glam):not(.hacker))::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
   background-image:
     radial-gradient(1px 1px at 30px 50px,rgba(255,255,255,.9) 50%,transparent 52%),
@@ -2572,31 +2570,33 @@ body:where(:not(.light):not(.glam):not(.hacker))::after{content:'';position:fixe
     radial-gradient(1px 1px at 260px 30px,rgba(255,255,255,.6) 50%,transparent 52%),
     radial-gradient(1px 1px at 380px 260px,rgba(255,255,255,.65) 50%,transparent 52%);
   background-size:230px 230px,230px 230px,230px 230px,340px 340px,470px 470px;
-  opacity:.55;animation:ordoTwinkle 8s ease-in-out infinite alternate}
-@keyframes ordoTwinkle{from{opacity:.3}to{opacity:.7}}
+  opacity:.5;animation:ordoTwinkle 8s ease-in-out infinite alternate}
+@keyframes ordoTwinkle{from{opacity:.28}to{opacity:.65}}
 @keyframes ordoRise{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:none}}
 
-/* titles */
-body:where(:not(.light):not(.glam):not(.hacker)) .hero,body:where(:not(.light):not(.glam):not(.hacker)) .stitle,body:where(:not(.light):not(.glam):not(.hacker)) .auth h1{background:linear-gradient(180deg,#fff 40%,#9b9ba4 130%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+/* titles and brand: plain white */
+body:where(:not(.light):not(.glam):not(.hacker)) .hero,body:where(:not(.light):not(.glam):not(.hacker)) .stitle,body:where(:not(.light):not(.glam):not(.hacker)) .auth h1{color:#fff}
 body:where(:not(.light):not(.glam):not(.hacker)) .eyebrow{color:var(--ter);letter-spacing:.1em}
-body:where(:not(.light):not(.glam):not(.hacker)) .brand .mark{background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 0 22px rgba(77,148,255,.35)}
+.brand b{text-transform:uppercase;letter-spacing:.22em;font-weight:800;font-size:16px}
+body:where(:not(.light):not(.glam):not(.hacker)) .brand .mark{width:34px;height:34px;padding:0;background:none;box-shadow:none}
 body:where(:not(.light):not(.glam):not(.hacker)) .next-date-badge b{color:#fff}
 
-/* surfaces: flat dark grey glass, thin border */
-body:where(:not(.light):not(.glam):not(.hacker)) .nextcard,body:where(:not(.light):not(.glam):not(.hacker)) .rows,body:where(:not(.light):not(.glam):not(.hacker)) .tcard,body:where(:not(.light):not(.glam):not(.hacker)) .achv,body:where(:not(.light):not(.glam):not(.hacker)) .stat-card,body:where(:not(.light):not(.glam):not(.hacker)) .faircard,body:where(:not(.light):not(.glam):not(.hacker)) .mecard,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-queue-tools,body:where(:not(.light):not(.glam):not(.hacker)) .auth .login-card,body:where(:not(.light):not(.glam):not(.hacker)) .gmenu,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-command-box,body:where(:not(.light):not(.glam):not(.hacker)) .qrow{
-  background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.025));
-  border:1px solid rgba(255,255,255,.13);box-shadow:none}
-body:where(:not(.light):not(.glam):not(.hacker)) .nextcard,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-queue-tools,body:where(:not(.light):not(.glam):not(.hacker)) .auth .login-card,body:where(:not(.light):not(.glam):not(.hacker)) .faircard,body:where(:not(.light):not(.glam):not(.hacker)) .mecard{-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+/* surfaces: black with a thin white edge. Menus and sheets are fully opaque. */
+body:where(:not(.light):not(.glam):not(.hacker)) .nextcard,body:where(:not(.light):not(.glam):not(.hacker)) .rows,body:where(:not(.light):not(.glam):not(.hacker)) .tcard,body:where(:not(.light):not(.glam):not(.hacker)) .achv,body:where(:not(.light):not(.glam):not(.hacker)) .stat-card,body:where(:not(.light):not(.glam):not(.hacker)) .faircard,body:where(:not(.light):not(.glam):not(.hacker)) .mecard,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-queue-tools,body:where(:not(.light):not(.glam):not(.hacker)) .auth .login-card,body:where(:not(.light):not(.glam):not(.hacker)) .qrow{
+  background:#070708;border:1px solid rgba(255,255,255,.2);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+body:where(:not(.light):not(.glam):not(.hacker)) .gmenu,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-command-box{background:#0a0a0b;border:1px solid rgba(255,255,255,.26);
+  box-shadow:0 24px 64px rgba(0,0,0,.95);-webkit-backdrop-filter:none;backdrop-filter:none}
 body:where(:not(.light):not(.glam):not(.hacker)) .qrow{transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s,background .2s}
 body:where(:not(.light):not(.glam):not(.hacker)) .qrow:active{transform:scale(.985)}
-body:where(:not(.light):not(.glam):not(.hacker)) .qrow:hover,body:where(:not(.light):not(.glam):not(.hacker)) .nextcard:hover{border-color:rgba(255,255,255,.3);background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.04))}
-body:where(:not(.light):not(.glam):not(.hacker)) .iconbtn,body:where(:not(.light):not(.glam):not(.hacker)) .fchip,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-user-chip{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.14)}
+body:where(:not(.light):not(.glam):not(.hacker)) .qrow:hover,body:where(:not(.light):not(.glam):not(.hacker)) .nextcard:hover{border-color:rgba(255,255,255,.5);background:#0d0d0f}
+body:where(:not(.light):not(.glam):not(.hacker)) .iconbtn,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-user-chip{background:transparent;border-color:rgba(255,255,255,.2)}
+body:where(:not(.light):not(.glam):not(.hacker)) .fchip{background:transparent;border-color:rgba(255,255,255,.26);color:var(--sec)}
 body:where(:not(.light):not(.glam):not(.hacker)) .fchip.on,body:where(:not(.light):not(.glam):not(.hacker)) .fchip.active{background:#fff;border-color:#fff;color:#000}
 
-/* buttons: white primary, grey secondary, blue only as accent */
-body:where(:not(.light):not(.glam):not(.hacker)) .btn-p{background:#fff;color:#000;box-shadow:0 0 0 1px rgba(255,255,255,.2),0 10px 30px -10px rgba(77,148,255,.55)}
+/* buttons: white primary, outlined secondary */
+body:where(:not(.light):not(.glam):not(.hacker)) .btn-p{background:#fff;color:#000;box-shadow:none}
 body:where(:not(.light):not(.glam):not(.hacker)) .btn-p:active{transform:scale(.975)}
-body:where(:not(.light):not(.glam):not(.hacker)) .btn-q{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.16)}
+body:where(:not(.light):not(.glam):not(.hacker)) .btn-q{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff}
 body:where(:not(.light):not(.glam):not(.hacker)) :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* entrance motion (.vin exists only on screen change) */
@@ -2607,7 +2607,7 @@ body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(4){animation-d
 body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(5){animation-delay:.2s}
 body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(n+6){animation-delay:.25s}
 
-/* readable sizes everywhere (no more 9-11px microtext) */
+/* readable sizes everywhere */
 .tag,.trole,.stat-lb,.ordo-qfilter,.ordo-queue-count,.ordo-page-meta,.brand small,.ordo-command-sub,.ordo-command-heading,.eyebrow,.tab .bdg,.gchev,.ordo-net{font-size:12px!important}
 .tab{font-size:12px!important}
 .fchip{font-size:14px!important;min-height:40px;padding:0 16px;display:inline-flex;align-items:center}
@@ -2625,27 +2625,17 @@ body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(n+6){animation
 @media (hover:none){.ordo-command-footer,.ordo-command-search kbd{display:none!important}}
 
 @media (max-width:959px){
-  /* declutter the phone header and page header */
   .ordo-net,.ordo-user-chip,.ordo-command-btn,.ordo-page-meta{display:none!important}
-  body:where(:not(.light):not(.glam):not(.hacker)) .tabbar{left:50%;right:auto;width:min(calc(100% - 24px),680px);transform:translateX(-50%);
-    bottom:calc(10px + env(safe-area-inset-bottom));border:1px solid rgba(255,255,255,.16);border-radius:28px;
-    background:rgba(14,14,16,.78);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);
-    box-shadow:0 18px 44px -12px rgba(0,0,0,.9)}
-  body:where(:not(.light):not(.glam):not(.hacker)) .tabbar-in{padding:6px}
+  body:where(:not(.light):not(.glam):not(.hacker)) .tabbar{background:rgba(0,0,0,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.16)}
   .tab{min-height:60px}
-  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on{background:var(--accent-soft);color:#fff;box-shadow:inset 0 0 0 1px rgba(77,148,255,.4)}
-  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on svg{color:var(--accent);filter:drop-shadow(0 0 6px rgba(77,148,255,.8))}
+  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on{background:transparent;color:#fff;box-shadow:none}
+  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on svg{color:var(--accent)}
+  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on::before{content:'';position:absolute;top:0;left:50%;width:28px;height:3px;border-radius:3px;background:var(--accent);transform:translateX(-50%)}
   .qrow{min-height:68px}
   .btn,.inp,select.inp{min-height:52px}
 }
-@media (prefers-reduced-motion:reduce){
-  body:where(:not(.light):not(.glam):not(.hacker))::after,body:where(:not(.light):not(.glam):not(.hacker)) .vin>*{animation:none!important}
-}
-@media print{body:where(:not(.light):not(.glam):not(.hacker))::before,body:where(:not(.light):not(.glam):not(.hacker))::after{display:none}}
-
-/* ordo-179 brand: queue mark + wordmark */
-.brand b{text-transform:uppercase;letter-spacing:.22em;font-weight:800;font-size:16px}
-.brand .mark{width:38px;height:38px;padding:7px}
+@media (prefers-reduced-motion:reduce){body:where(:not(.light):not(.glam):not(.hacker))::after,body:where(:not(.light):not(.glam):not(.hacker)) .vin>*{animation:none!important}}
+@media print{body:where(:not(.light):not(.glam):not(.hacker))::after{display:none}}
 </style>
 </head>
 <body>
@@ -2779,7 +2769,7 @@ const ICON = {
   user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.3-7 8-7s7 2.5 8 7"/></svg>'
 };
 const SUPPORT_URL = 'https://t.me/mediocreep'; /* ordo-133: Telegram @mediocreep — официальный канал связи сайта */
-const MARK = '<svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect x="12" y="19" width="56" height="17" rx="8.5" style="fill:var(--text)"/><circle cx="82" cy="27.5" r="8.5" style="fill:var(--accent)"/><rect x="12" y="42" width="52" height="17" rx="8.5" style="fill:var(--text);opacity:.5"/><rect x="12" y="65" width="34" height="17" rx="8.5" style="fill:var(--text);opacity:.25"/></svg>';
+const MARK = '<svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect x="12" y="19" width="56" height="17" rx="8.5" style="fill:var(--text)"/><circle cx="82" cy="27.5" r="8.5" style="fill:var(--accent)"/><rect x="12" y="42" width="52" height="17" rx="8.5" style="fill:var(--text)"/><rect x="12" y="65" width="34" height="17" rx="8.5" style="fill:var(--text)"/></svg>';
 
 /* ---------------- auth error text ---------------- */
 function authErrorMessage(e){
