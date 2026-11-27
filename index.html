@@ -2556,6 +2556,89 @@ body.hacker .qrow {
   .auth.land{gap:48px;padding-top:48px;padding-bottom:48px}
   .hero{font-size:clamp(38px,4.4vw,56px)}
 }
+
+/* ordo-177 cosmos: space background, glass cards, glow, entrance motion.
+   Dark theme only (light/glam/hacker untouched). Reversible: delete this block. */
+:root{--sec:#c4cee4;--ter:#919ebb;--hair:rgba(170,185,255,.17);--accent:#8ea4ff;--accent-ink:#080d28;--accent-soft:rgba(142,164,255,.16);--cosmos-glow:rgba(142,164,255,.5)}
+body:where(:not(.light):not(.glam):not(.hacker)){background:transparent}
+body:where(:not(.light):not(.glam):not(.hacker))::before{content:'';position:fixed;inset:-12%;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(52% 38% at 14% 2%,rgba(112,124,255,.34),transparent 70%),
+    radial-gradient(46% 34% at 100% 16%,rgba(168,92,250,.24),transparent 70%),
+    radial-gradient(60% 40% at 55% 104%,rgba(34,200,230,.15),transparent 70%),
+    radial-gradient(40% 30% at 0% 70%,rgba(88,110,255,.14),transparent 70%);
+  animation:ordoAurora 32s ease-in-out infinite alternate;will-change:transform}
+body:where(:not(.light):not(.glam):not(.hacker))::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:
+    radial-gradient(1px 1px at 30px 50px,rgba(255,255,255,.95) 50%,transparent 52%),
+    radial-gradient(1px 1px at 150px 120px,rgba(190,202,255,.85) 50%,transparent 52%),
+    radial-gradient(1.4px 1.4px at 90px 200px,rgba(255,255,255,.8) 50%,transparent 52%),
+    radial-gradient(1px 1px at 260px 30px,rgba(255,255,255,.7) 50%,transparent 52%),
+    radial-gradient(1.2px 1.2px at 40px 150px,rgba(210,190,255,.8) 50%,transparent 52%),
+    radial-gradient(1px 1px at 380px 260px,rgba(255,255,255,.75) 50%,transparent 52%);
+  background-size:230px 230px,230px 230px,230px 230px,340px 340px,340px 340px,470px 470px;
+  opacity:.8;animation:ordoTwinkle 7s ease-in-out infinite alternate}
+@keyframes ordoAurora{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(2.5%,3%,0) scale(1.06)}}
+@keyframes ordoTwinkle{from{opacity:.45}to{opacity:.95}}
+@keyframes ordoRise{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:none}}
+@keyframes ordoSheen{0%,55%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+@keyframes ordoBreath{0%,100%{box-shadow:0 0 0 0 rgba(142,164,255,.0)}50%{box-shadow:0 0 28px 2px rgba(142,164,255,.28)}}
+
+/* titles */
+body:where(:not(.light):not(.glam):not(.hacker)) .hero,body:where(:not(.light):not(.glam):not(.hacker)) .stitle,body:where(:not(.light):not(.glam):not(.hacker)) .auth h1{background:linear-gradient(180deg,#fff 20%,#b4c0ff 120%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+body:where(:not(.light):not(.glam):not(.hacker)) .eyebrow{color:rgba(196,206,255,.78);letter-spacing:.15em}
+body:where(:not(.light):not(.glam):not(.hacker)) .brand .mark{box-shadow:0 0 26px var(--cosmos-glow),inset 0 0 0 1px rgba(170,185,255,.3)}
+body:where(:not(.light):not(.glam):not(.hacker)) .next-date-badge b{color:#cfd8ff;text-shadow:0 0 18px rgba(142,164,255,.55)}
+
+/* glass surfaces */
+body:where(:not(.light):not(.glam):not(.hacker)) .nextcard,body:where(:not(.light):not(.glam):not(.hacker)) .rows,body:where(:not(.light):not(.glam):not(.hacker)) .tcard,body:where(:not(.light):not(.glam):not(.hacker)) .achv,body:where(:not(.light):not(.glam):not(.hacker)) .stat-card,body:where(:not(.light):not(.glam):not(.hacker)) .faircard,body:where(:not(.light):not(.glam):not(.hacker)) .mecard,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-queue-tools,body:where(:not(.light):not(.glam):not(.hacker)) .auth .login-card,body:where(:not(.light):not(.glam):not(.hacker)) .gmenu,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-command-box,body:where(:not(.light):not(.glam):not(.hacker)) .qrow{
+  background:linear-gradient(158deg,rgba(255,255,255,.085),rgba(255,255,255,.018) 58%),rgba(13,19,44,.58);
+  border:1px solid rgba(165,180,255,.18);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 22px 48px -26px rgba(0,0,0,.85)}
+body:where(:not(.light):not(.glam):not(.hacker)) .nextcard,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-queue-tools,body:where(:not(.light):not(.glam):not(.hacker)) .auth .login-card,body:where(:not(.light):not(.glam):not(.hacker)) .faircard,body:where(:not(.light):not(.glam):not(.hacker)) .mecard{-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5)}
+body:where(:not(.light):not(.glam):not(.hacker)) .qrow{transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s,box-shadow .2s}
+body:where(:not(.light):not(.glam):not(.hacker)) .qrow:active{transform:scale(.985)}
+body:where(:not(.light):not(.glam):not(.hacker)) .qrow:hover,body:where(:not(.light):not(.glam):not(.hacker)) .nextcard:hover{border-color:rgba(190,200,255,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 30px -6px rgba(142,164,255,.38),0 22px 48px -26px rgba(0,0,0,.85)}
+body:where(:not(.light):not(.glam):not(.hacker)) .iconbtn,body:where(:not(.light):not(.glam):not(.hacker)) .fchip,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-user-chip{background:rgba(255,255,255,.06);border-color:rgba(165,180,255,.2)}
+body:where(:not(.light):not(.glam):not(.hacker)) .fchip.on,body:where(:not(.light):not(.glam):not(.hacker)) .fchip.active{background:rgba(142,164,255,.2);border-color:rgba(190,200,255,.5);color:#fff;box-shadow:0 0 20px -4px var(--cosmos-glow)}
+
+/* buttons */
+body:where(:not(.light):not(.glam):not(.hacker)) .btn-p{position:relative;overflow:hidden;color:#080d28;
+  background:linear-gradient(135deg,#93a9ff 0%,#a98bff 55%,#c58cff 100%);
+  box-shadow:0 12px 36px -8px rgba(150,125,255,.7),inset 0 1px 0 rgba(255,255,255,.45)}
+body:where(:not(.light):not(.glam):not(.hacker)) .btn-p::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.4) 50%,transparent 62%);
+  transform:translateX(-130%);animation:ordoSheen 5.5s ease-in-out 1.2s infinite}
+body:where(:not(.light):not(.glam):not(.hacker)) .btn-p:active{transform:scale(.975)}
+body:where(:not(.light):not(.glam):not(.hacker)) .btn-q{background:rgba(255,255,255,.07);border-color:rgba(165,180,255,.24)}
+
+/* entrance motion: .vin exists only on screen change, so no replay on live updates */
+body:where(:not(.light):not(.glam):not(.hacker)) .vin>*{animation:ordoRise .65s cubic-bezier(.2,.8,.2,1) backwards}
+body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(2){animation-delay:.05s}
+body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(3){animation-delay:.1s}
+body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(4){animation-delay:.15s}
+body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(5){animation-delay:.2s}
+body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(6){animation-delay:.25s}
+body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(n+7){animation-delay:.3s}
+
+/* floating glass tab bar on phones and tablets */
+@media (max-width:959px){
+  body:where(:not(.light):not(.glam):not(.hacker)) .tabbar{left:50%;right:auto;width:min(calc(100% - 24px),680px);transform:translateX(-50%);
+    bottom:calc(10px + env(safe-area-inset-bottom));border:1px solid rgba(170,185,255,.22);border-radius:26px;
+    background:rgba(12,18,42,.66);-webkit-backdrop-filter:blur(24px) saturate(1.7);backdrop-filter:blur(24px) saturate(1.7);
+    box-shadow:0 20px 54px -12px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.09)}
+  body:where(:not(.light):not(.glam):not(.hacker)) .tabbar-in{padding:6px}
+  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on{background:linear-gradient(180deg,rgba(142,164,255,.3),rgba(142,164,255,.1));
+    box-shadow:inset 0 0 0 1px rgba(190,200,255,.34),0 0 24px -2px rgba(142,164,255,.45);color:#dfe5ff}
+  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on svg{filter:drop-shadow(0 0 6px rgba(142,164,255,.9))}
+}
+@media (min-width:960px){
+  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on{box-shadow:inset 0 0 0 1px rgba(190,200,255,.28),0 0 26px -6px var(--cosmos-glow)}
+}
+@media (prefers-reduced-motion:reduce){
+  body:where(:not(.light):not(.glam):not(.hacker))::before,body:where(:not(.light):not(.glam):not(.hacker))::after,body:where(:not(.light):not(.glam):not(.hacker)) .btn-p::after,body:where(:not(.light):not(.glam):not(.hacker)) .vin>*{animation:none!important}
+}
+@media print{body:where(:not(.light):not(.glam):not(.hacker))::before,body:where(:not(.light):not(.glam):not(.hacker))::after{display:none}}
 </style>
 </head>
 <body>
