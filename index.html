@@ -47,7 +47,7 @@ html,body{margin:0;padding:0;overscroll-behavior-y:none}
   --sec:rgba(235,235,245,.72); --ter:rgba(235,235,245,.5);
   --hair:rgba(255,255,255,.13);
   --fill:rgba(120,120,128,.22);
-  --accent:#0A84FF; --accent-ink:#ffffff; --accent-soft:rgba(10,132,255,.15);
+  --accent:#4d94ff; --accent-ink:#ffffff; --accent-soft:rgba(77,148,255,.15);
   --green:#30D158; --red:#FF453A; --amber:#FFD60A;
   --sheet:#1c1c1e;
   --bar:rgba(14,14,16,.72);
@@ -61,7 +61,7 @@ body.light{
   --sec:rgba(60,60,67,.76); --ter:rgba(60,60,67,.52);
   --hair:rgba(60,60,67,.13);
   --fill:rgba(120,120,128,.15);
-  --accent:#007AFF; --accent-ink:#ffffff; --accent-soft:rgba(0,122,255,.12);
+  --accent:#4d94ff; --accent-ink:#ffffff; --accent-soft:rgba(77,148,255,.12);
   --amber:#A86E00; /* темнее, чем в тёмной: на белом яркий слепит */
   --green:#1E7D32; /* темнее, чем в тёмной: на белом яркий слепит */
   --sheet:#ffffff;
@@ -328,8 +328,8 @@ details.faq summary::-webkit-details-marker{display:none}
 details.faq .policy{font-size:14.5px;color:var(--sec);margin-top:10px;line-height:1.55}
 details.faq .policy p{margin:0 0 10px}
 .avatar{width:46px;height:46px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex:none;position:relative}
-.ondot{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:#0A84FF;border:2px solid var(--bg);animation:odot 2.2s infinite}
-@keyframes odot{0%{box-shadow:0 0 0 0 rgba(10,132,255,.5)}70%{box-shadow:0 0 0 9px rgba(10,132,255,0)}100%{box-shadow:0 0 0 0 rgba(10,132,255,0)}}
+.ondot{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:#4d94ff;border:2px solid var(--bg);animation:odot 2.2s infinite}
+@keyframes odot{0%{box-shadow:0 0 0 0 rgba(77,148,255,.5)}70%{box-shadow:0 0 0 9px rgba(77,148,255,0)}100%{box-shadow:0 0 0 0 rgba(77,148,255,0)}}
 .hday{font-size:13px;font-weight:600;color:var(--sec);margin:18px 0 6px;text-transform:capitalize}
 .hrow{display:flex;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--hair);font-size:15px}
 .hrow:last-child{border-bottom:0}
@@ -548,11 +548,11 @@ body:not(.light) .nextcard{border:1px solid var(--hair)}
   --text: #f2f5fb;
   --sec: #aab5c8;
   --ter: #738099;
-  --hair: rgba(186, 202, 229, .13);
-  --fill: rgba(153, 171, 204, .105);
-  --accent: #7b96ff;
+  --hair: rgba(77,148,255, .13);
+  --fill: rgba(77,148,255, .105);
+  --accent: #4d94ff;
   --accent-ink: #07112f;
-  --accent-soft: rgba(123, 150, 255, .15);
+  --accent-soft: rgba(77,148,255, .15);
   --green: #53d49a;
   --red: #ff727c;
   --amber: #f3c66c;
@@ -575,10 +575,10 @@ body.light {
   --sec: #657188;
   --ter: #8d98aa;
   --hair: rgba(39, 56, 87, .11);
-  --fill: rgba(59, 79, 118, .075);
-  --accent: #405ff1;
+  --fill: rgba(77,148,255, .075);
+  --accent: #4d94ff;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(64, 95, 241, .10);
+  --accent-soft: rgba(77,148,255, .10);
   --green: #16865d;
   --red: #d84f5b;
   --amber: #a9741b;
@@ -596,8 +596,8 @@ html {
 
 body {
   background:
-    radial-gradient(ellipse at 88% -8%, rgba(94, 121, 224, .10), transparent 32rem),
-    radial-gradient(ellipse at -10% 36%, rgba(75, 147, 172, .055), transparent 30rem),
+    radial-gradient(ellipse at 88% -8%, rgba(77,148,255, .10), transparent 32rem),
+    radial-gradient(ellipse at -10% 36%, rgba(77,148,255, .055), transparent 30rem),
     var(--bg);
   color: var(--text);
   font-family: var(--font);
@@ -607,8 +607,8 @@ body {
 
 body.light {
   background:
-    radial-gradient(ellipse at 90% -10%, rgba(64, 95, 241, .07), transparent 34rem),
-    radial-gradient(ellipse at -10% 42%, rgba(33, 145, 154, .035), transparent 28rem),
+    radial-gradient(ellipse at 90% -10%, rgba(77,148,255, .07), transparent 34rem),
+    radial-gradient(ellipse at -10% 42%, rgba(77,148,255, .035), transparent 28rem),
     var(--bg);
 }
 
@@ -2557,12 +2557,19 @@ body.hacker .qrow {
   .hero{font-size:clamp(38px,4.4vw,56px)}
 }
 
-/* ordo-180 oled: pure black / white, blue only as an accent, big touch targets, less clutter.
-   Dark theme only. Reversible: delete this block. */
-:root{--bg:#000;--bg2:#070708;--text:#fff;--sec:#d3d3d9;--ter:#a4a4ad;--hair:rgba(255,255,255,.18);--fill:rgba(255,255,255,.09);
-  --accent:#4d94ff;--accent-ink:#fff;--accent-soft:rgba(77,148,255,.14);--sheet:#0a0a0b;--bar:rgba(0,0,0,.9)}
-body:where(:not(.light):not(.glam):not(.hacker)){background:transparent}
-body:where(:not(.light):not(.glam):not(.hacker))::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+/* ordo-184 unified: one design system, two identical themes (black / white), one blue (#4d94ff).
+   Everything below reads from variables, so dark and light share layout, spacing, radii and states. */
+:root{color-scheme:dark;--bg:#000;--bg2:#070708;--text:#fff;--sec:#d3d3d9;--ter:#a4a4ad;--hair:rgba(255,255,255,.18);--fill:rgba(255,255,255,.09);
+  --accent:#4d94ff;--accent-ink:#fff;--accent-soft:rgba(77,148,255,.16);--sheet:#0a0a0b;--bar:rgba(0,0,0,.92);
+  --surface:#070708;--edge:rgba(255,255,255,.2);--edge-strong:rgba(255,255,255,.3);--strong:#fff;--on-strong:#000;
+  --red:#ff453a;--green:#30d158;--amber:#ffd60a;--shadow:0 24px 64px rgba(0,0,0,.95);--shadow-card:none}
+body.light{color-scheme:light;--bg:#fff;--bg2:#f5f5f7;--text:#000;--sec:#3a3a40;--ter:#6b6b74;--hair:rgba(0,0,0,.14);--fill:rgba(0,0,0,.06);
+  --accent:#4d94ff;--accent-ink:#fff;--accent-soft:rgba(77,148,255,.16);--sheet:#fff;--bar:rgba(255,255,255,.92);
+  --surface:#f5f5f7;--edge:rgba(0,0,0,.14);--edge-strong:rgba(0,0,0,.3);--strong:#000;--on-strong:#fff;
+  --red:#d70015;--green:#1a7f37;--amber:#9a6700;--shadow:0 24px 64px rgba(0,0,0,.18);--shadow-card:none}
+body.light{background:var(--bg)}
+body:not(.light){background:transparent}
+body:not(.light)::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
   background-image:
     radial-gradient(1px 1px at 30px 50px,rgba(255,255,255,.9) 50%,transparent 52%),
     radial-gradient(1px 1px at 150px 120px,rgba(255,255,255,.7) 50%,transparent 52%),
@@ -2574,38 +2581,40 @@ body:where(:not(.light):not(.glam):not(.hacker))::after{content:'';position:fixe
 @keyframes ordoTwinkle{from{opacity:.28}to{opacity:.65}}
 @keyframes ordoRise{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:none}}
 
-/* titles and brand: plain white */
-body:where(:not(.light):not(.glam):not(.hacker)) .hero,body:where(:not(.light):not(.glam):not(.hacker)) .stitle,body:where(:not(.light):not(.glam):not(.hacker)) .auth h1{color:#fff}
-body:where(:not(.light):not(.glam):not(.hacker)) .eyebrow{color:var(--ter);letter-spacing:.1em}
+/* titles and brand */
+.hero,.stitle,.auth h1,.next-date-badge b{color:var(--text)}
+.eyebrow{color:var(--ter);letter-spacing:.1em}
 .brand b{text-transform:uppercase;letter-spacing:.22em;font-weight:800;font-size:16px}
-body:where(:not(.light):not(.glam):not(.hacker)) .brand .mark{width:34px;height:34px;padding:0;background:none;box-shadow:none}
-body:where(:not(.light):not(.glam):not(.hacker)) .next-date-badge b{color:#fff}
+.brand .mark{width:34px;height:34px;padding:0;background:none;border-radius:9px;box-shadow:0 0 0 1px var(--edge);flex:none}
 
-/* surfaces: black with a thin white edge. Menus and sheets are fully opaque. */
-body:where(:not(.light):not(.glam):not(.hacker)) .nextcard,body:where(:not(.light):not(.glam):not(.hacker)) .rows,body:where(:not(.light):not(.glam):not(.hacker)) .tcard,body:where(:not(.light):not(.glam):not(.hacker)) .achv,body:where(:not(.light):not(.glam):not(.hacker)) .stat-card,body:where(:not(.light):not(.glam):not(.hacker)) .faircard,body:where(:not(.light):not(.glam):not(.hacker)) .mecard,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-queue-tools,body:where(:not(.light):not(.glam):not(.hacker)) .auth .login-card,body:where(:not(.light):not(.glam):not(.hacker)) .qrow{
-  background:#070708;border:1px solid rgba(255,255,255,.2);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
-body:where(:not(.light):not(.glam):not(.hacker)) .gmenu,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-command-box{background:#0a0a0b;border:1px solid rgba(255,255,255,.26);
-  box-shadow:0 24px 64px rgba(0,0,0,.95);-webkit-backdrop-filter:none;backdrop-filter:none}
-body:where(:not(.light):not(.glam):not(.hacker)) .qrow{transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s,background .2s}
-body:where(:not(.light):not(.glam):not(.hacker)) .qrow:active{transform:scale(.985)}
-body:where(:not(.light):not(.glam):not(.hacker)) .qrow:hover,body:where(:not(.light):not(.glam):not(.hacker)) .nextcard:hover{border-color:rgba(255,255,255,.5);background:#0d0d0f}
-body:where(:not(.light):not(.glam):not(.hacker)) .iconbtn,body:where(:not(.light):not(.glam):not(.hacker)) .ordo-user-chip{background:transparent;border-color:rgba(255,255,255,.2)}
-body:where(:not(.light):not(.glam):not(.hacker)) .fchip{background:transparent;border-color:rgba(255,255,255,.26);color:var(--sec)}
-body:where(:not(.light):not(.glam):not(.hacker)) .fchip.on,body:where(:not(.light):not(.glam):not(.hacker)) .fchip.active{background:#fff;border-color:#fff;color:#000}
+/* surfaces: flat, thin edge, no shadows. Menus are fully opaque. */
+.nextcard,.rows,.tcard,.achv,.stat-card,.faircard,.mecard,.ratecard,.ordo-queue-tools,.auth .login-card,.qrow{
+  background:var(--surface);border:1px solid var(--edge);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.gmenu,.ordo-command-box{background:var(--sheet);border:1px solid var(--edge-strong);box-shadow:var(--shadow);-webkit-backdrop-filter:none;backdrop-filter:none}
+.qrow{transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s,background .2s}
+.qrow:active{transform:scale(.985)}
+.qrow:hover,.nextcard:hover{border-color:var(--edge-strong)}
+.iconbtn,.ordo-user-chip{background:transparent;border-color:var(--edge)}
+.fchip{background:transparent;border-color:var(--edge-strong);color:var(--sec)}
+.fchip.on,.fchip.active{background:var(--strong);border-color:var(--strong);color:var(--on-strong)}
 
-/* buttons: white primary, outlined secondary */
-body:where(:not(.light):not(.glam):not(.hacker)) .btn-p{background:#fff;color:#000;box-shadow:none}
-body:where(:not(.light):not(.glam):not(.hacker)) .btn-p:active{transform:scale(.975)}
-body:where(:not(.light):not(.glam):not(.hacker)) .btn-q{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff}
-body:where(:not(.light):not(.glam):not(.hacker)) :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* buttons and tags: strong / outline / quiet red; neutral tags */
+.btn-p{background:var(--strong);color:var(--on-strong);box-shadow:none}
+.btn-p:active{transform:scale(.975)}
+.btn-q{background:transparent;border:1px solid var(--edge-strong);color:var(--text)}
+.btn-danger-q{background:transparent;border:1px solid var(--edge);color:var(--red)}
+.tag,.tag.green,.tag.red{background:transparent;border:1px solid var(--edge-strong);color:var(--sec)}
+.tag.amber{background:transparent;border:1px solid var(--edge-strong);color:var(--amber)}
+.tag.blue{background:var(--accent-soft);border-color:transparent;color:var(--text)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* entrance motion (.vin exists only on screen change) */
-body:where(:not(.light):not(.glam):not(.hacker)) .vin>*{animation:ordoRise .6s cubic-bezier(.2,.8,.2,1) backwards}
-body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(2){animation-delay:.05s}
-body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(3){animation-delay:.1s}
-body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(4){animation-delay:.15s}
-body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(5){animation-delay:.2s}
-body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(n+6){animation-delay:.25s}
+.vin>*{animation:ordoRise .6s cubic-bezier(.2,.8,.2,1) backwards}
+.vin>*:nth-child(2){animation-delay:.05s}
+.vin>*:nth-child(3){animation-delay:.1s}
+.vin>*:nth-child(4){animation-delay:.15s}
+.vin>*:nth-child(5){animation-delay:.2s}
+.vin>*:nth-child(n+6){animation-delay:.25s}
 
 /* readable sizes everywhere */
 .tag,.trole,.stat-lb,.ordo-qfilter,.ordo-queue-count,.ordo-page-meta,.brand small,.ordo-command-sub,.ordo-command-heading,.eyebrow,.tab .bdg,.gchev,.ordo-net{font-size:12px!important}
@@ -2615,7 +2624,7 @@ body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(n+6){animation
 .iconbtn{min-width:44px;min-height:44px}
 .tab svg{width:25px;height:25px}
 
-/* command palette: stacked title/subtitle, big targets, no keyboard hints */
+/* command palette */
 .ordo-command-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
 .ordo-command-title{font-size:16px!important}
 .ordo-command-sub{display:block;white-space:normal;color:var(--ter)}
@@ -2624,18 +2633,19 @@ body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(n+6){animation
 .ordo-command-icon svg{width:21px;height:21px}
 @media (hover:none){.ordo-command-footer,.ordo-command-search kbd{display:none!important}}
 
+/* tab bar: docked, same in both themes */
+.tabbar{background:var(--bar);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid var(--edge)}
+.tab.on{background:transparent;color:var(--text);box-shadow:none}
+.tab.on svg{color:var(--accent)}
 @media (max-width:959px){
   .ordo-net,.ordo-user-chip,.ordo-command-btn,.ordo-page-meta{display:none!important}
-  body:where(:not(.light):not(.glam):not(.hacker)) .tabbar{background:rgba(0,0,0,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.16)}
   .tab{min-height:60px}
-  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on{background:transparent;color:#fff;box-shadow:none}
-  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on svg{color:var(--accent)}
-  body:where(:not(.light):not(.glam):not(.hacker)) .tab.on::before{content:'';position:absolute;top:0;left:50%;width:28px;height:3px;border-radius:3px;background:var(--accent);transform:translateX(-50%)}
+  .tab.on::before{content:'';position:absolute;top:0;left:50%;width:28px;height:3px;border-radius:3px;background:var(--accent);transform:translateX(-50%)}
   .qrow{min-height:68px}
   .btn,.inp,select.inp{min-height:52px}
 }
-@media (prefers-reduced-motion:reduce){body:where(:not(.light):not(.glam):not(.hacker))::after,body:where(:not(.light):not(.glam):not(.hacker)) .vin>*{animation:none!important}}
-@media print{body:where(:not(.light):not(.glam):not(.hacker))::after{display:none}}
+@media (prefers-reduced-motion:reduce){body:not(.light)::after,.vin>*{animation:none!important}}
+@media print{body::after{display:none}}
 
 /* ordo-181 calm: no queue filter row, collapsed history, quiet log rows */
 .ordo-queue-filter-row{display:none!important}
@@ -2672,6 +2682,10 @@ body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(n+6){animation
 .rate-sub{font-size:14px;color:var(--ter)}
 .ratecard{background:var(--bg2);border:1px solid var(--hair);color:var(--text);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .ratecard:active{transform:scale(.985)}
+
+/* ordo-184b */
+.mecard .fairbar{background:var(--fill)}
+.me-big.me-word{font-size:clamp(40px,14.5vw,74px);letter-spacing:-.045em;line-height:1}
 </style>
 </head>
 <body>
@@ -2758,7 +2772,7 @@ const Theme = {
   apply(t){ const next = t==='light' ? 'light' : 'dark';
     document.body.classList.toggle('light', next==='light');
     try{ localStorage.setItem('dutysite-theme', next); }catch(_){}
-    const meta = document.querySelector('meta[name=theme-color]'); if(meta) meta.content = next==='light' ? '#f2f2f7' : '#000000';
+    const meta = document.querySelector('meta[name=theme-color]'); if(meta) meta.content = next==='light' ? '#ffffff' : '#000000';
     document.querySelectorAll('.themebtn').forEach(b => b.innerHTML = next==='light' ? ICON.moon : ICON.sun);
   },
   toggle(){ Easter.apply('off'); Theme.apply(document.body.classList.contains('light') ? 'dark' : 'light'); },
@@ -2768,20 +2782,15 @@ const Theme = {
 /* ---------------- easter eggs: hidden themes ---------------- */
 const Easter = {
   mode:'off',
-  apply(m){
-    this.mode = (m==='glam' || m==='hacker') ? m : 'off';
-    document.body.classList.toggle('glam', this.mode==='glam');
-    document.body.classList.toggle('hacker', this.mode==='hacker');
-    try{ localStorage.setItem('ordo-easter', this.mode); }catch(_){}
+  apply(){ /* ordo-184: скрытые темы убраны — всегда обычная */
+    this.mode = 'off';
+    document.body.classList.remove('glam', 'hacker');
+    try{ localStorage.removeItem('ordo-easter'); }catch(_){}
     const meta = document.querySelector('meta[name=theme-color]');
-    if(meta) meta.content = this.mode==='glam' ? '#ff9ecf' : this.mode==='hacker' ? '#020604'
-      : (document.body.classList.contains('light') ? '#f2f2f7' : '#000000');
+    if(meta) meta.content = document.body.classList.contains('light') ? '#ffffff' : '#000000';
   },
-  cycle(){
-    this.apply(this.mode==='off' ? 'glam' : this.mode==='glam' ? 'hacker' : 'off');
-    toast(this.mode==='glam' ? 'Гламурный режим' : this.mode==='hacker' ? 'Режим хакера активирован' : 'Обычная тема');
-  },
-  init(){ let m='off'; try{ m = localStorage.getItem('ordo-easter') || 'off'; }catch(_){} this.apply(m); }
+  cycle(){},
+  init(){ this.apply(); }
 };
 let _tapN = 0, _tapT = 0;
 function easterTap(){
@@ -2805,7 +2814,7 @@ const ICON = {
   user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.3-7 8-7s7 2.5 8 7"/></svg>'
 };
 const SUPPORT_URL = 'https://t.me/mediocreep'; /* ordo-133: Telegram @mediocreep — официальный канал связи сайта */
-const MARK = '<svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect x="12" y="19" width="56" height="17" rx="8.5" style="fill:var(--text)"/><circle cx="82" cy="27.5" r="8.5" style="fill:var(--accent)"/><rect x="12" y="42" width="52" height="17" rx="8.5" style="fill:var(--text)"/><rect x="12" y="65" width="34" height="17" rx="8.5" style="fill:var(--text)"/></svg>';
+const MARK = '<svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#000"/><g transform="translate(-2 0)"><rect x="18" y="23" width="52" height="15" rx="7.5" fill="#fff"/><circle cx="82" cy="30.5" r="7.5" fill="#4d94ff"/><rect x="18" y="44" width="48" height="15" rx="7.5" fill="#fff"/><rect x="18" y="65" width="32" height="15" rx="7.5" fill="#fff"/></g></svg>';
 
 /* ---------------- auth error text ---------------- */
 function authErrorMessage(e){
@@ -5687,7 +5696,7 @@ function vHome(){
   }
   const meCard = meIdx >= 0
     ? `<button class="mecard" id="meCard"><span class="eyebrow">Ваша очередь</span>
-      <span class="me-big"${meNum ? ` data-n="${meNum}"` : ''}>${esc(meBig)}</span>
+      <span class="me-big${meNum ? '' : ' me-word'}"${meNum ? ` data-n="${meNum}"` : ''}>${esc(meBig)}</span>
       <span class="me-cap">${esc(meCap)}</span>
       <span class="fairbar" aria-hidden="true"><i style="width:${pct}%"></i></span>
       <span class="me-sub">№${meIdx + 1} из ${q.length}${fc ? ` · ${esc(fc)}` : ''}</span></button>`
@@ -7595,7 +7604,7 @@ function initPTR(){
     legacyEasterApply(mode);
     const themeMeta = document.querySelector('meta[name=theme-color]');
     if(themeMeta){
-      const color = Easter.mode === 'glam' ? '#ff9ecf' : Easter.mode === 'hacker' ? '#020604' : (document.body.classList.contains('light') ? '#f4f6fb' : '#0b1020');
+      const color = Easter.mode === 'glam' ? '#ff9ecf' : Easter.mode === 'hacker' ? '#020604' : (document.body.classList.contains('light') ? '#ffffff' : '#000000');
       themeMeta.content = color;
     }
   };
