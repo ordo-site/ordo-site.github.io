@@ -2636,6 +2636,42 @@ body:where(:not(.light):not(.glam):not(.hacker)) .vin>*:nth-child(n+6){animation
 }
 @media (prefers-reduced-motion:reduce){body:where(:not(.light):not(.glam):not(.hacker))::after,body:where(:not(.light):not(.glam):not(.hacker)) .vin>*{animation:none!important}}
 @media print{body:where(:not(.light):not(.glam):not(.hacker))::after{display:none}}
+
+/* ordo-181 calm: no queue filter row, collapsed history, quiet log rows */
+.ordo-queue-filter-row{display:none!important}
+.hist-fold>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:0 16px;border:1px solid var(--hair);border-radius:16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hist-fold>summary::-webkit-details-marker{display:none}
+.hist-fold>summary::after{content:'';width:9px;height:9px;border-right:2px solid var(--ter);border-bottom:2px solid var(--ter);transform:rotate(45deg) translateY(-2px);transition:transform .25s cubic-bezier(.2,.8,.2,1);flex:none;margin-left:4px}
+.hist-fold[open]>summary::after{transform:rotate(-135deg) translateY(-2px)}
+.hist-fold[open]>summary{margin-bottom:14px}
+.hist-title{font-size:17px;font-weight:700;flex:1}
+.hx{display:flex;gap:14px;align-items:flex-start;padding:15px 2px;border-bottom:1px solid var(--hair)}
+.hx:last-child{border-bottom:0}
+.hdot{flex:none;width:9px;height:9px;border-radius:50%;margin-top:8px;background:#fff}
+.hdot.no{background:transparent;box-shadow:inset 0 0 0 2px var(--ter)}
+.hdot.mv{background:var(--accent)}
+.htxt{font-size:15px;line-height:1.45;color:var(--text);overflow-wrap:anywhere}
+.hmeta{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:13px;color:var(--ter)}
+.hdel{font:inherit;font-size:13px;color:var(--ter);background:none;border:0;padding:8px 6px;margin:-8px 0;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.hdel:active{color:var(--red)}
+
+/* ordo-182 home: one big answer */
+.mecard{display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:22px 22px 20px!important;margin-top:28px;text-align:left}
+.mecard .eyebrow{margin-bottom:6px}
+.me-big{display:block;font-size:clamp(76px,26vw,124px);font-weight:800;line-height:.92;letter-spacing:-.055em;font-variant-numeric:tabular-nums;color:var(--text)}
+.me-cap{display:block;font-size:18px;font-weight:600;color:var(--text);margin-top:8px}
+.mecard .fairbar{width:100%;height:4px;margin:18px 0 12px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden;display:block}
+.mecard .fairbar i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.me-sub{display:block;font-size:14px;color:var(--ter)}
+.hist-fold>summary.hist-sum{margin-top:0}
+
+/* ordo-183 rating */
+.ratecard{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;width:100%;margin-top:12px;padding:16px 22px;text-align:left;border-radius:20px}
+.ratecard .eyebrow{flex:0 0 100%}
+.rate-num{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums;color:var(--text)}
+.rate-sub{font-size:14px;color:var(--ter)}
+.ratecard{background:var(--bg2);border:1px solid var(--hair);color:var(--text);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ratecard:active{transform:scale(.985)}
 </style>
 </head>
 <body>
@@ -5633,12 +5669,28 @@ function vHome(){
      тап ведёт на вкладку «Очередь». ordo-159: полоса прогресса (N из M),
      обратный отсчёт («через 11 дней»), дата жирным; кто дежурит сегодня —
      так и написано, без прогноза. */
-  const pct = q.length ? Math.round((meIdx + 1) / q.length * 100) : 0;
+  const pct = q.length ? Math.round((q.length - meIdx) / q.length * 100) : 0; /* ordo-182: полоса растёт по мере приближения очереди */
+  const dw = n => { const a = n % 10, b = n % 100; return b > 10 && b < 15 ? 'дней' : a === 1 ? 'день' : (a > 1 && a < 5) ? 'дня' : 'дней'; };
+  let meBig = '', meCap = '', meNum = 0;
+  if(meIdx >= 0){
+    if(paused){ meBig = '—'; meCap = Pause.label(); }
+    else if(isDebtor){ meBig = '—'; meCap = 'Вне очереди: долг'; }
+    else if(inCurrent){ meBig = 'Сегодня'; meCap = 'Вы дежурите'; }
+    else if(fcDate){
+      const d0 = new Date(), t0 = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate());
+      const t1 = new Date(fcDate.getFullYear(), fcDate.getMonth(), fcDate.getDate());
+      const days = Math.round((t1 - t0) / 864e5);
+      if(days <= 0){ meBig = 'Сегодня'; meCap = 'ваше дежурство'; }
+      else if(days === 1){ meBig = 'Завтра'; meCap = 'ваше дежурство'; }
+      else { meNum = days; meBig = String(days); meCap = `${dw(days)} до вашего дежурства`; }
+    }else{ meBig = '№' + (meIdx + 1); meCap = 'Вы в очереди'; }
+  }
   const meCard = meIdx >= 0
     ? `<button class="mecard" id="meCard"><span class="eyebrow">Ваша очередь</span>
-      <span class="me-num">№${meIdx + 1} <span class="me-of">из ${q.length}</span></span>
+      <span class="me-big"${meNum ? ` data-n="${meNum}"` : ''}>${esc(meBig)}</span>
+      <span class="me-cap">${esc(meCap)}</span>
       <span class="fairbar" aria-hidden="true"><i style="width:${pct}%"></i></span>
-      <span class="body2">${paused ? esc(Pause.label()) : isDebtor ? 'Вне очереди: долг' : inCurrent ? 'Вы дежурите сегодня' : fc ? `Следующее дежурство — <b>${esc(fc)}</b> · ${esc(Fair.countdownText(fcDate))}` : 'Вы в очереди'}</span></button>`
+      <span class="me-sub">№${meIdx + 1} из ${q.length}${fc ? ` · ${esc(fc)}` : ''}</span></button>`
     : '';
   /* ordo-159: кто дежурил последним — последняя засчитанная запись журнала */
   const lastEntry = (S.state.log || []).filter(en => en && en.counted && Array.isArray(en.people) && en.people.length).pop();
@@ -5675,8 +5727,24 @@ function vHome(){
     : '';
 
   const checkHtml = now ? Check.sectionHTML(now) : '';
-  const html = `${hero}${installHintHtml()}${overdueHtml}${liveMarks}${checkHtml}${action}${nextCard}${meCard}${lastLine}${debtLine}${fairLine}`;
+  const mePerson = me;
+  let rateCard = '';
+  if(mePerson && meIdx >= 0){
+    const base = Rating.base(mePerson.id), bn = Rating.bonus(S._volAttended || 0);
+    rateCard = `<button class="ratecard" id="rateCard"><span class="eyebrow">Рейтинг</span><span class="rate-num" id="rateNum">${base + bn}</span><span class="rate-sub" id="rateSub">дежурства ${base} · волонтёрство +${bn}</span></button>`;
+  }
+  const moreBody = `${lastLine}${debtLine}${fairLine}`;
+  const more = moreBody.trim() ? `<details class="sec hist-fold"><summary class="hist-sum"><span class="hist-title">Подробности группы</span></summary>${moreBody}</details>` : '';
+  const html = `${hero}${installHintHtml()}${overdueHtml}${liveMarks}${checkHtml}${action}${meCard}${rateCard}${nextCard}${more}`;
   shell(html, 'home');
+  document.querySelectorAll('.me-big[data-n]').forEach(el => {
+    const n = +el.dataset.n;
+    if(!n || !el.closest('.vin') || (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches)) return;
+    const t0 = performance.now(), D = 900;
+    el.textContent = '0';
+    const step = t => { const k = Math.min(1, (t - t0) / D); el.textContent = Math.round(n * (1 - Math.pow(1 - k, 3))); if(k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
   const ih = document.getElementById('installHide'); if(ih) ih.onclick = () => { try{ localStorage.setItem('ordo-install-dismissed', '1'); }catch(_){} const el = document.getElementById('installHint'); if(el) el.remove(); };
   Check.bind(now);
   const sb = $('#startBtn'); if(sb) sb.onclick = () => { if(sb.dataset.closed) toast(HOLIDAYS.has(mskTodayParts().ymd) ? 'Сегодня выходной — дежурства не назначаются.' : 'Назначение доступно в будни с 8:00 до 16:30.'); else Duty.start(); };
@@ -5691,6 +5759,17 @@ function vHome(){
     (S._pendingMarks || (S._pendingMarks = {}))[pid] = st;
     queueMarkSave();
   });
+  const rc = $('#rateCard'); if(rc) rc.onclick = () => { S.view = 'vol'; render(); };
+  if(mePerson && meIdx >= 0){
+    Rating.attended().then(n => {
+      if(n === S._volAttended) return;
+      S._volAttended = n;
+      const bn = Rating.bonus(n), base = Rating.base(mePerson.id);
+      const a = document.getElementById('rateNum'), b = document.getElementById('rateSub');
+      if(a) a.textContent = String(base + bn);
+      if(b) b.textContent = `дежурства ${base} · волонтёрство +${bn}`;
+    });
+  }
   const nc = $('#nextCard'); if(nc) nc.onclick = () => { S.view = 'queue'; render(); };
   const mc = $('#meCard'); if(mc) mc.onclick = () => { S.view = 'queue'; render(); };
   /* ordo-178: «Подробнее» в карточке индекса — показать/скрыть формулу и статистику */
@@ -5792,8 +5871,7 @@ function vQueue(){
   const head = `<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Очередь</h1>
     <span style="display:flex;gap:8px;align-items:baseline"><button class="linkbtn" id="qrBtn">QR на дверь</button>${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</span></div>
     <p class="body2">${q.length} ${peopleWord(q.length)}</p>
-    ${(S.groupCurators && S.groupCurators.length) ? `<p class="tiny" style="margin-top:2px">Куратор: ${esc(S.groupCurators.join(', '))}</p>` : ''}
-    <p class="tiny" style="margin-top:4px">Порядок — история дежурств и перестановки старосты. Нажми на человека, чтобы узнать подробности.</p>`;
+    ${(S.groupCurators && S.groupCurators.length) ? `<p class="tiny" style="margin-top:2px">Куратор: ${esc(S.groupCurators.join(', '))}</p>` : ''}`;
   shell(`${head}<div class="sec qlist" id="qList" style="margin-top:16px">${rows || '<p class="body2">Пока пусто.</p>'}</div>`, 'queue');
   const t = $('#ordTgl'); if(t) t.onclick = () => { S.orderMode = !S.orderMode; render(); };
   const qb = $('#qrBtn'); if(qb) qb.onclick = () => { S.view = 'qr'; render(); };
@@ -6148,11 +6226,84 @@ async function vRequests(){
   if(isStaff()) refreshReqBadge();
 }
 /* ---------------- волонтёрство ---------------- */
+/* ordo-183: демо-волонтёрство целиком в памяти — гость проходит весь сценарий
+   (запись → подтверждение → «был» → рейтинг) без Supabase. Реальные данные не трогает. */
+const DemoVol = {
+  _ev: null, _su: null,
+  init(){
+    if(this._ev) return;
+    const day = n => { const d = new Date(); d.setDate(d.getDate() + n); d.setHours(11, 0, 0, 0); return d.toISOString(); };
+    this._ev = [
+      { id:'dv1', title:'Уборка территории колледжа', description:'Берём перчатки и мешки — работаем во дворе.', starts_at:day(3), hours:3, slots:10, closed:false, group_id:'demo' },
+      { id:'dv2', title:'День открытых дверей', description:'Встречаем абитуриентов и показываем лаборатории.', starts_at:day(6), hours:4, slots:6, closed:false, group_id:'demo' },
+      { id:'dv3', title:'Сбор посылок для ветеранов', description:'Фасуем и подписываем наборы.', starts_at:day(9), hours:2, slots:null, closed:false, group_id:'demo' }
+    ];
+    const others = (S.people || []).filter(x => x && x.id !== 'demo-p2').slice(0, 5);
+    const row = (x, st) => ({ user_id:x.user_id || x.id, name:x.name, status:st });
+    this._su = { dv1:[], dv2:[], dv3:[] };
+    if(others[0]) this._su.dv1.push(row(others[0], 'pending'));
+    if(others[1]) this._su.dv1.push(row(others[1], 'approved'));
+    if(others[2]) this._su.dv2.push(row(others[2], 'approved'));
+    /* прошлое: у гостя уже есть одно засчитанное участие — рейтинг не пустой */
+    this._past = 1;
+  },
+  me(){ return 'demo'; },
+  load(){
+    this.init();
+    const mine = {};
+    Object.keys(this._su).forEach(id => { const r = this._su[id].find(x => x.user_id === this.me()); if(r) mine[id] = r.status; });
+    return { events: this._ev.filter(e => !e.closed), mine };
+  },
+  loadManage(){
+    this.init();
+    const counts = {};
+    this._ev.forEach(e => { const c = counts[e.id] = {}; (this._su[e.id] || []).forEach(x => { c[x.status] = (c[x.status] || 0) + 1; }); });
+    return { events: this._ev.slice(), counts };
+  },
+  signup(id){
+    this.init();
+    const e = this._ev.find(x => x.id === id); if(!e) throw new Error('event_not_found');
+    const list = this._su[id] || (this._su[id] = []);
+    if(e.slots && list.filter(x => x.status === 'pending' || x.status === 'approved' || x.status === 'attended').length >= e.slots) throw new Error('slots_full');
+    if(!list.find(x => x.user_id === this.me())){
+      const mp = (S.people || []).find(x => x.id === 'demo-p2');
+      list.push({ user_id:this.me(), name:(mp && mp.name) || 'Петрова Анна', status:'pending' });
+    }
+  },
+  cancel(id){ this.init(); this._su[id] = (this._su[id] || []).filter(x => x.user_id !== this.me()); },
+  people(id){ this.init(); return (this._su[id] || []).map(x => ({ o_user_id:x.user_id, o_name:x.name, o_group:'3СА24Н', o_status:x.status })); },
+  decide(id, uid, st){ this.init(); const r = (this._su[id] || []).find(x => x.user_id === uid); if(r) r.status = st; },
+  patch(id, f){ this.init(); const e = this._ev.find(x => x.id === id); if(e) Object.assign(e, f); },
+  remove(id){ this.init(); this._ev = this._ev.filter(x => x.id !== id); delete this._su[id]; },
+  create(f){ this.init(); const id = 'dv' + Date.now(); this._ev.unshift({ id, closed:false, group_id:'demo', ...f }); this._su[id] = []; },
+  attended(){ this.init(); let n = this._past || 0; Object.keys(this._su).forEach(id => { if((this._su[id] || []).some(x => x.user_id === this.me() && x.status === 'attended')) n++; }); return n; }
+};
+/* ordo-183: рейтинг = основа (доля отработанных дежурств, 0–100) + 5 баллов за каждое
+   подтверждённое участие в волонтёрстве (не больше +25). Нет дежурств — основа 100. */
+const Rating = {
+  BONUS: 5, CAP: 25,
+  base(meId){
+    let tot = 0, ok = 0;
+    (S.state && S.state.log || []).forEach(en => {
+      if(!en || en.writeoff || !Array.isArray(en.people)) return;
+      en.people.forEach(it => { if(!it || it.sub || it.id !== meId) return; tot++; if(it.status === STATUS.PRESENT) ok++; });
+    });
+    return tot ? Math.round(100 * ok / tot) : 100;
+  },
+  bonus(n){ return Math.min(this.CAP, (n || 0) * this.BONUS); },
+  async attended(){
+    if(S.demo) return DemoVol.attended();
+    try{
+      const r = await db.from('volunteer_signups').select('status').eq('user_id', S.user.id).eq('status', 'attended');
+      return r.error ? 0 : (r.data || []).length;
+    }catch(_){ return 0; }
+  }
+};
 const Vol = {
   msg: { slots_full:'Мест больше нет', event_started:'Событие уже началось', event_closed:'Запись закрыта', forbidden:'Нет доступа к этому событию', event_not_found:'Событие не найдено', not_authenticated:'Войдите заново' },
   err(e){ const m = String((e && e.message) || e); for(const k in this.msg) if(m.includes(k)) return this.msg[k]; return authErrorMessage(e); },
   async load(){
-    if(S.demo) return { events:[], mine:{} };
+    if(S.demo) return DemoVol.load();
     const [ev, su] = await Promise.all([
       db.from('volunteer_events').select('*').eq('closed', false).gte('starts_at', new Date().toISOString()).order('starts_at'),
       db.from('volunteer_signups').select('event_id,status').eq('user_id', S.user.id)
@@ -6163,8 +6314,8 @@ const Vol = {
     (su.data || []).forEach(x => { mine[x.event_id] = x.status; });
     return { events: ev.data || [], mine };
   },
-  async signup(id){ if(S.demo) throw new Error('В демо запись недоступна'); const r = await db.rpc('volunteer_signup', { p_event:id }); if(r.error) throw r.error; return r.data; },
-  async cancel(id){ if(S.demo) throw new Error('В демо запись недоступна'); const r = await db.rpc('volunteer_cancel', { p_event:id }); if(r.error) throw r.error; }
+  async signup(id){ if(S.demo){ DemoVol.signup(id); return; } const r = await db.rpc('volunteer_signup', { p_event:id }); if(r.error) throw r.error; return r.data; },
+  async cancel(id){ if(S.demo){ DemoVol.cancel(id); return; } const r = await db.rpc('volunteer_cancel', { p_event:id }); if(r.error) throw r.error; }
 };
 const VOL_ST = { pending:['Ожидает','amber'], approved:['Подтверждено','green'], rejected:['Отклонено','red'], attended:['Был','green'], absent:['Не был','red'] };
 async function vVolunteer(){
@@ -6172,7 +6323,7 @@ async function vVolunteer(){
      ниже для стаффа — секция управления (бывший отдельный экран куратора:
      «＋ Новое событие», счётчики и кнопки Участники / Закрыть-Открыть / Удалить).
      Нестаффу секция управления не показывается вообще — её нет в DOM. */
-  const staff = isStaff();
+  const staff = isStaff() || (S.demo && S.demoLeader);
   let list = document.getElementById('volList');
   if(!list){
     shell(`<h1 class="stitle" style="margin-top:4px">Волонтёрство</h1>
@@ -6290,7 +6441,7 @@ const VolM = {
   async load(){
     /* ordo-172: в демо управление не ходит в Supabase — как Vol.load():
        анонима RLS не пускает, и экран показывал «Нет прав на это действие.» */
-    if(S.demo) return { events:[], counts:{} };
+    if(S.demo) return DemoVol.loadManage();
     let q = db.from('volunteer_events').select('*').order('starts_at', { ascending:false }).limit(40);
     if(!isStaff()) q = q.eq('group_id', S.group.id);
     const ev = await q;
@@ -6332,6 +6483,7 @@ const VolM = {
       if(slots !== null && (isNaN(slots) || slots < 1 || slots > 500)) return toast('Мест: от 1 до 500');
       const btn = w.querySelector('#vmYes'); btn.disabled = true;
       try{
+        if(S.demo){ DemoVol.create({ title, description: desc || null, starts_at: when.toISOString(), hours, slots }); closeSheet(); toast('Событие создано'); vVolunteer(); return; }
         const r = await db.from('volunteer_events').insert({
           college_id: S.profile.college_id,
           group_id: scope === 'c' ? null : S.group.id,
@@ -6350,7 +6502,7 @@ const VolM = {
     const body = w.querySelector('#vmBody');
     const fill = async () => {
       try{
-        const r = await db.rpc('volunteer_event_signups', { p_event:id });
+        const r = S.demo ? { data: DemoVol.people(id) } : await db.rpc('volunteer_event_signups', { p_event:id });
         if(r.error) throw r.error;
         const rows = r.data || [];
         body.innerHTML = rows.length ? `<div class="rows">` + rows.map(x => {
@@ -6368,8 +6520,8 @@ const VolM = {
           const [uid, st] = b.dataset.vd.split('|');
           b.disabled = true;
           try{
-            const d = await db.rpc('volunteer_decide', { p_event:id, p_user:uid, p_status:st });
-            if(d.error) throw d.error;
+            if(S.demo) DemoVol.decide(id, uid, st);
+            else{ const d = await db.rpc('volunteer_decide', { p_event:id, p_user:uid, p_status:st }); if(d.error) throw d.error; }
           }catch(e){ toast(Vol.err(e)); }
           await fill(); vVolunteer();
         });
@@ -6378,11 +6530,13 @@ const VolM = {
     fill();
   },
   async patch(id, fields){
+    if(S.demo){ DemoVol.patch(id, fields); return; }
     const r = await db.from('volunteer_events').update(fields).eq('id', id).select('id');
     if(r.error) throw r.error;
     if(!(r.data || []).length) throw new Error('forbidden');
   },
   async remove(id){
+    if(S.demo){ DemoVol.remove(id); return; }
     const r = await db.from('volunteer_events').delete().eq('id', id).select('id');
     if(r.error) throw r.error;
     if(!(r.data || []).length) throw new Error('forbidden');
@@ -6470,15 +6624,10 @@ function vProfile(){
   S._histQ = ''; S._histF = 'all';
   const histRow = (en) => {
     const gi = log.indexOf(en);
-    const del = isStaff() ? `<button class="linkbtn danger" style="font-size:13px;padding:6px" data-hdel="${gi}" aria-label="Удалить запись">×</button>` : '';
-    if(en.kind === 'reorder')
-      return `<div class="hrow"><div class="grow"><b>${esc(en.action || '')}</b></div>
-        <span class="tiny">${esc(fmt(en.at))}</span>
-        ${del}</div>`;
-    return `<div class="hrow"><div class="grow"><b>${esc(en.counted ? 'Засчитано' : 'Не засчитано')}</b>
-        <div class="sub clamp3" style="font-size:14px;color:var(--sec);margin-top:2px">${esc(en.action || '')}</div></div>
-        <span class="tiny">${esc(fmt(en.at))}</span>
-        ${del}</div>`;
+    const del = isStaff() ? `<button type="button" class="hdel" data-hdel="${gi}" aria-label="Удалить запись">удалить</button>` : '';
+    const kind = en.kind === 'reorder' ? 'mv' : (en.counted ? 'ok' : 'no');
+    const txt = String(en.action || '').replace(/^(Не\s+)?засчитано:\s*/i, (m, ne) => ne ? 'Не засчитано: ' : '');
+    return `<div class="hx"><span class="hdot ${kind}" aria-hidden="true"></span><div class="grow"><div class="htxt">${esc(txt)}</div><div class="hmeta"><span>${esc(fmt(en.at))}</span>${del}</div></div></div>`;
   };
   const bindHistDel = () => {
     document.querySelectorAll('[data-hdel]').forEach(b => b.onclick = () => {
@@ -6524,9 +6673,9 @@ function vProfile(){
 
     ${me ? Achv.sectionHTML(log, me.id) : ''}
 
-    <div class="sec"><div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px"><div class="eyebrow" style="margin:0">${me ? 'Мои записи' : 'Журнал группы'}</div><span class="tiny" id="histCount"></span></div>
+    <details class="sec hist-fold"><summary class="hist-sum"><span class="hist-title">${me ? 'Мои записи' : 'История группы'}</span><span class="tiny" id="histCount"></span></summary>
       <div class="hist-tools"><input id="histQ" class="inp" type="search" placeholder="Поиск по истории..." autocomplete="off"><select id="histF" class="inp" aria-label="Фильтр записей"><option value="all">Все записи</option><option value="counted">Засчитанные</option><option value="uncounted">Не засчитанные</option><option value="reorder">Изменения очереди</option></select></div>
-      <div id="histList"></div></div>
+      <div id="histList"></div></details>
     <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Действия</div><div class="rows">${rows}</div></div>
 
 
